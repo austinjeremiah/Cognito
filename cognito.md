@@ -1,8 +1,8 @@
 # Cognito — Full Build Blueprint
 ### Hackathon Edition · Solo Build · May 2026
 
-> **Strategy:** Testnet for everything heavy. Mainnet for one visible proof anchor.
-> **Stack:** Mastra + SuiSQL + Walrus + Tatum RPC + Sui Mainnet + Next.js
+> **Strategy:** Testnet for heavy data. Mainnet for one visible proof anchor. Verification is one click. The UI itself runs on Walrus Sites.
+> **Stack:** Mastra + SuiSQL + Walrus + **Walrus Sites** + Tatum RPC + Sui Mainnet + Next.js
 
 ---
 
@@ -38,19 +38,30 @@
 
 ## 1. Project Overview
 
-**Cognito** is an open, verifiable audit log system for AI agents. Every action an agent takes is:
+**Cognito is the verifiable, uncensorable memory layer for AI agents.** Not just an audit log — a cryptographically provable record where every claim can be checked by anyone, and no single party can take it down.
+
+Every action an agent takes is:
 
 1. Logged as a structured JSON entry
-2. Stored permanently on **Walrus** (decentralized blob storage)
+2. Stored permanently on **Walrus** (decentralized, content-addressed blob storage — the blob ID *is* the hash of the bytes, so any tampering is mathematically detectable)
 3. Indexed in **SuiSQL** (SQL DB persisted on-chain via Walrus + Sui)
-4. Anchored to **Sui Mainnet** at session end (one summary tx per session)
-5. Queryable by the agent itself via **Mastra tools** (MCP-compatible)
+4. Anchored to **Sui Mainnet** at session end (one summary tx per session, immutable forever)
+5. Queryable by the agent itself via **Mastra tools** (MCP-compatible) — true agentic memory
 6. Visualized as a **knowledge graph** in the UI
+7. **Verifiable on demand** — one click re-fetches the blob, recomputes its hash, and checks it against the on-chain anchor event (see §5.3 VerifyService + §6.2 Page 4)
+8. **Served from Walrus Sites** — the dashboard itself runs decentralized. No Vercel, no AWS, no DNS chokepoint (see §5.2.F + §7 Day 10)
+
+### The two structural promises
+
+| Promise | How it's enforced (not just claimed) |
+|---|---|
+| **Verifiable** | Walrus content-addressing means the blob ID equals the cryptographic hash of its bytes. The Sui mainnet anchor event records that exact blob ID. Anyone can re-fetch the blob from any aggregator, re-hash it, and confirm it matches — without trusting Cognito's backend. |
+| **Uncensorable** | Storage on Walrus (erasure-coded across nodes), index on SuiSQL (persisted to Walrus + Sui), proofs on Sui mainnet, and the **UI itself on Walrus Sites**. Every layer of the stack survives any single party going offline. Tatum is used as a reliable RPC gateway but is fully swappable — anyone can verify with any Sui RPC. |
 
 **Why it matters for judges:**
-- Any AI agent using Cognito becomes *auditable* — you can prove what it did, when, and why
-- Combines Walrus storage + SuiSQL indexing + Sui mainnet anchoring + Tatum RPC in one coherent product
-- The agent can read its own history — true agentic memory with verifiable provenance
+- Any AI agent using Cognito becomes *cryptographically auditable* — not "trust us, we logged it" but "verify it yourself in one click"
+- Combines Walrus storage + **Walrus Sites** + SuiSQL indexing + Sui mainnet anchoring + Tatum RPC in one coherent product
+- The agent can read AND verify its own history — agentic memory with provable provenance
 
 ---
 
@@ -93,10 +104,17 @@
 └─────────────────────────────────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
-│                    FRONTEND (Next.js)                       │
+│           FRONTEND (Next.js → published to Walrus Sites)    │
 │                                                             │
 │  Dashboard → Agent List → Session View → Knowledge Graph    │
 │  Every tx links to SuiVision. Every blob links to Walrus.   │
+│                                                             │
+│  ▶ "Verify Integrity" button on Session Detail:             │
+│    fetch blob → recompute SHA-256 → compare to blob ID      │
+│    → compare to SessionAnchored event on Sui → ✅ / ❌      │
+│                                                             │
+│  ▶ Site served at https://<site-id>.walrus.site             │
+│    No centralized host. Pointer object lives on Sui.        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -182,6 +200,14 @@ LOG_LEVEL=info
 NEXT_PUBLIC_API_URL=http://localhost:3001
 NEXT_PUBLIC_SUIVISION_BASE=https://suivision.xyz
 NEXT_PUBLIC_WALRUS_AGGREGATOR=https://aggregator.walrus-testnet.walrus.space
+# Public Sui RPC used by the browser for trustless verification
+# (intentionally NOT routed through Tatum so verification needs no API key)
+NEXT_PUBLIC_SUI_PUBLIC_RPC=https://fullnode.mainnet.sui.io:443
+
+# ─── WALRUS SITES (decentralized frontend hosting) ───────────
+# Filled after first publish with the site-builder CLI
+WALRUS_SITE_OBJECT_ID=
+NEXT_PUBLIC_WALRUS_SITE_URL=
 ```
 
 **Where to get each:**
@@ -208,13 +234,15 @@ cognito-backend/
 │   │   ├── session.ts              # POST /api/session/start, /api/session/end
 │   │   ├── history.ts              # GET  /api/history/:agentId
 │   │   ├── blob.ts                 # GET  /api/blob/:blobId — proxy Walrus read
+│   │   ├── verify.ts               # GET  /api/verify/:actionId — content-hash proof
 │   │   └── health.ts               # GET  /api/health
 │   │
 │   ├── services/
 │   │   ├── ActionQueueService.ts   # In-memory queue, batches action logs
-│   │   ├── WalrusService.ts        # writeBlob, readBlob, writeBatch
+│   │   ├── WalrusService.ts        # writeBlob, readBlob, writeBatch, computeBlobId
 │   │   ├── SuiSQLService.ts        # init DB, insertAction, queryHistory
 │   │   ├── SuiAnchorService.ts     # sign + send mainnet anchor tx via Tatum RPC
+│   │   ├── VerifyService.ts        # fetch blob → re-hash → match to on-chain event
 │   │   ├── TatumRPCService.ts      # wrapper around Tatum gateway_execute_rpc
 │   │   └── CacheService.ts         # Redis get/set/del helpers
 │   │
@@ -224,6 +252,7 @@ cognito-backend/
 │   │   │   ├── logActionTool.ts    # Tool: log_action → POST /api/log
 │   │   │   ├── queryHistoryTool.ts # Tool: query_history → GET /api/history
 │   │   │   ├── readBlobTool.ts     # Tool: read_blob → GET /api/blob/:id
+│   │   │   ├── verifyActionTool.ts # Tool: verify_action — agent self-audits
 │   │   │   └── endSessionTool.ts   # Tool: end_session → POST /api/session/end
 │   │   └── agent.ts                # Example demo agent using the tools
 │   │
@@ -545,6 +574,62 @@ const result = await tatumMcp.gateway_execute_rpc({
 
 ---
 
+#### F. Walrus Sites (Decentralized Frontend Hosting)
+
+**Purpose:** Publish the entire Next.js dashboard *on Walrus itself* so the UI has no centralized host. Static build is stored as Walrus blobs; a Sui object points to the bundle; the Walrus aggregator network serves it under `*.walrus.site`.
+
+**Why this is necessary, not cosmetic:** Without it, the pitch is "decentralized backend, centralized frontend on Vercel." With it, **every layer is uncensorable** — storage, index, proofs, and UI. There is no DNS, no S3, no provider that can pull the plug on the demo.
+
+**Tool:** `site-builder` CLI (official Walrus Sites publisher)
+
+**Install:**
+```bash
+cargo install --git https://github.com/MystenLabs/walrus-sites site-builder
+```
+
+**Site config — `sites-config.yaml` at frontend root:**
+```yaml
+module: site_builder
+package: 0xWALRUS_SITES_PACKAGE_ID   # mainnet/testnet package per Walrus docs
+portal: walrus.site
+general:
+  rpc_url: https://fullnode.mainnet.sui.io:443
+  walrus_binary: walrus
+  walrus_config: ~/.config/walrus/client_config.yaml
+  gas_budget: 500000000
+```
+
+**Next.js config — `next.config.ts`:**
+```typescript
+export default {
+  output: 'export',          // static export, required for Walrus Sites
+  trailingSlash: true,
+  images: { unoptimized: true },
+};
+```
+
+**Publish flow:**
+```bash
+# 1. Build static site
+npm run build       # outputs ./out
+
+# 2. Publish to Walrus
+site-builder publish ./out --epochs 100
+
+# 3. CLI prints the Sui object ID of the site
+# → save to WALRUS_SITE_OBJECT_ID in .env
+# → URL becomes https://<base36-of-object-id>.walrus.site
+```
+
+**Updating the site (republishes blobs, updates the pointer atomically):**
+```bash
+site-builder update <WALRUS_SITE_OBJECT_ID> ./out --epochs 100
+```
+
+**Demo line:** *"Open the dashboard at `<id>.walrus.site`. There is no server I could take down to hide what the agent did — including the page you're looking at right now."*
+
+---
+
 ### 5.3 Core Services
 
 #### ActionQueueService (`src/services/ActionQueueService.ts`)
@@ -629,6 +714,136 @@ export class SuiAnchorService {
     return result.digest; // mainnet tx digest
   }
 }
+```
+
+#### VerifyService (`src/services/VerifyService.ts`)
+
+**Responsibility:** Proves an action's stored blob has not been tampered with. This is the service that turns "audit log" into **verifiable audit log** — the product's defining feature.
+
+**The proof chain it checks (all four must pass):**
+1. Fetch the raw blob from a Walrus aggregator using the `blob_id` stored in SuiSQL
+2. Recompute the blob ID from the fetched bytes — Walrus blob IDs are derived from content, so any tampering breaks this step
+3. Query the `SessionAnchored` event on Sui mainnet for the action's session
+4. Confirm the on-chain event's `blob_id` matches the recomputed ID
+
+```typescript
+import { createSuiClient } from './TatumRPCService';
+import { WalrusService } from './WalrusService';
+import { SuiSQLService } from './SuiSQLService';
+
+export interface VerifyProof {
+  actionId: string;
+  status: 'verified' | 'tampered' | 'unanchored';
+  steps: {
+    blobFetched: boolean;
+    hashMatchesBlobId: boolean;
+    onChainEventFound: boolean;
+    onChainBlobIdMatches: boolean;
+  };
+  recomputedBlobId?: string;
+  onChainBlobId?: string;
+  mainnetTxDigest?: string;
+  suiVisionUrl?: string;
+}
+
+export class VerifyService {
+  constructor(
+    private walrus: WalrusService,
+    private suisql: SuiSQLService,
+  ) {}
+
+  async verifyAction(actionId: string): Promise<VerifyProof> {
+    const action = await this.suisql.getAction(actionId);
+    if (!action?.blobId) {
+      return {
+        actionId,
+        status: 'unanchored',
+        steps: {
+          blobFetched: false,
+          hashMatchesBlobId: false,
+          onChainEventFound: false,
+          onChainBlobIdMatches: false,
+        },
+      };
+    }
+
+    // Step 1+2: re-fetch and re-derive the blob ID
+    const bytes = await this.walrus.readBlob(action.blobId);
+    const recomputedBlobId = await this.walrus.computeBlobId(bytes);
+    const hashMatchesBlobId = recomputedBlobId === action.blobId;
+
+    // Step 3+4: check the on-chain SessionAnchored event
+    const session = await this.suisql.getSession(action.sessionId);
+    const client = createSuiClient('mainnet');
+    let onChainEventFound = false;
+    let onChainBlobIdMatches = false;
+    let onChainBlobId: string | undefined;
+
+    if (session?.mainnetTxDigest) {
+      const tx = await client.getTransactionBlock({
+        digest: session.mainnetTxDigest,
+        options: { showEvents: true },
+      });
+      const event = tx.events?.find(e =>
+        e.type.includes('::agent_ledger::SessionAnchored')
+      );
+      if (event) {
+        onChainEventFound = true;
+        onChainBlobId = (event.parsedJson as any).blob_id;
+        onChainBlobIdMatches = onChainBlobId === action.blobId;
+      }
+    }
+
+    const allPassed =
+      hashMatchesBlobId && onChainEventFound && onChainBlobIdMatches;
+
+    return {
+      actionId,
+      status: allPassed ? 'verified' : 'tampered',
+      steps: {
+        blobFetched: true,
+        hashMatchesBlobId,
+        onChainEventFound,
+        onChainBlobIdMatches,
+      },
+      recomputedBlobId,
+      onChainBlobId,
+      mainnetTxDigest: session?.mainnetTxDigest,
+      suiVisionUrl: session?.mainnetTxDigest
+        ? `https://suivision.xyz/txblock/${session.mainnetTxDigest}`
+        : undefined,
+    };
+  }
+}
+```
+
+> **Note:** `WalrusService.computeBlobId(bytes)` uses the same blob-ID derivation function the Walrus SDK uses internally for `writeBlob`. The `@mysten/walrus` SDK exposes encoding utilities; if not directly available, perform a dry-run encode to derive the ID from bytes. The point is: the ID is a pure function of the bytes, so any tampering breaks the chain at step 2.
+
+**Route — `src/routes/verify.ts`:**
+```typescript
+fastify.get<{ Params: { actionId: string } }>(
+  '/api/verify/:actionId',
+  async (req, reply) => {
+    const proof = await verifyService.verifyAction(req.params.actionId);
+    return reply.send(proof);
+  }
+);
+```
+
+**Mastra tool — `src/mastra/tools/verifyActionTool.ts`:**
+```typescript
+// Lets the agent itself audit its own past actions — self-aware integrity check
+export const verifyActionTool = createTool({
+  id: 'verify_action',
+  description: 'Cryptographically verify that a logged action has not been tampered with',
+  inputSchema: z.object({ actionId: z.string() }),
+  execute: async ({ context }) => {
+    const res = await fetch(`${API_BASE}/api/verify/${context.actionId}`, {
+      headers: { 'x-api-key': process.env.COGNITO_API_KEY! },
+    });
+    return res.json();
+  },
+});
 ```
 
 ---
@@ -727,6 +942,29 @@ SuiSQLService.updateSession({ mainnet_tx_digest })
         │
         ▼
 Response: { txDigest, blobId, suiVisionUrl }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+User (or agent) clicks "Verify Integrity"
+        │
+        ▼
+GET /api/verify/:actionId
+        │
+        ▼
+VerifyService.verifyAction(actionId)
+        │
+        ▼
+Step 1: Read blob bytes from Walrus aggregator
+Step 2: Recompute blob ID from bytes — must match stored blobId
+Step 3: Look up session.mainnet_tx_digest in SuiSQL
+Step 4: Fetch the SessionAnchored event from Sui mainnet
+Step 5: On-chain event.blob_id must match the recomputed blob ID
+        │
+        ▼
+Response: VerifyProof {
+  status: 'verified' | 'tampered' | 'unanchored',
+  steps: { ...four booleans... },
+  recomputedBlobId, onChainBlobId, mainnetTxDigest, suiVisionUrl
+}
 ```
 
 ---
@@ -989,6 +1227,7 @@ cognito-frontend/
 │   │   ├── blockchain/
 │   │   │   ├── TxBadge.tsx         # SuiVision link badge
 │   │   │   ├── BlobLink.tsx        # Walrus aggregator link
+│   │   │   ├── VerifyPanel.tsx     # "Verify Integrity" — re-hash + on-chain check
 │   │   │   └── NetworkBadge.tsx    # testnet / mainnet indicator
 │   │   └── dashboard/
 │   │       ├── StatsCard.tsx
@@ -1139,6 +1378,16 @@ cognito-frontend/
   - "Verify on SuiVision" button → opens `https://suivision.xyz/txblock/{digest}`
   - "View Blob on Walrus" button → opens `https://aggregator.walrus-testnet.walrus.space/v1/blobs/{blobId}`
   - Green "Anchored ✅" badge
+- **Verify Integrity Panel** (the killer demo moment — see §6.3 `VerifyPanel.tsx`):
+  - One-click "Verify Integrity" button → calls `GET /api/verify/:actionId`
+  - Live result UI: four checkmarks animate in as each step passes
+    - ✅ Blob fetched from Walrus
+    - ✅ Hash matches blob ID (content unchanged)
+    - ✅ SessionAnchored event found on Sui mainnet
+    - ✅ On-chain blob ID matches recomputed ID
+  - Final status badge: 🟢 **Cryptographically Verified** / 🔴 **TAMPERED** / 🟡 **Unanchored**
+  - Tooltip on each step explains what was checked
+  - "Re-run with public RPC" toggle — proves verification works without Cognito's backend (uses `NEXT_PUBLIC_SUI_PUBLIC_RPC`)
 - Action timeline: every action in order
   - Each action has: type icon, timestamp, description, blob badge
   - Clicking an action opens a detail drawer with raw JSON payload
@@ -1147,12 +1396,14 @@ cognito-frontend/
 - `SessionStatus` (Active / Anchored / Pending)
 - `TxBadge` (hero)
 - `BlobLink`
+- `VerifyPanel` (verify integrity hero — see §6.3)
 - `ActionDetail` (drawer)
 - `SessionTimeline`
 
 **API integrations:**
 - `GET /api/sessions/:sessionId` → session detail
 - `GET /api/history?sessionId=${id}` → actions for this session
+- `GET /api/verify/:actionId` → integrity proof (Walrus re-hash + on-chain match)
 
 **States:**
 - Active session: "Recording..." spinner, actions streaming in
@@ -1234,6 +1485,77 @@ export function BlobLink({ blobId }: BlobLinkProps) {
        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-xs font-mono hover:bg-blue-500/20 transition-colors">
       🌊 {blobId.slice(0, 12)}...
     </a>
+  );
+}
+```
+
+#### `VerifyPanel.tsx`
+```tsx
+// One-click cryptographic integrity proof — the core "verifiable" UX
+import { useState } from 'react';
+import { api } from '@/lib/api';
+
+interface VerifyPanelProps { actionId: string; }
+
+type Step = { label: string; passed: boolean | null };
+
+export function VerifyPanel({ actionId }: VerifyPanelProps) {
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  async function runVerify() {
+    setRunning(true);
+    setResult(null);
+    const proof = await api.get(`/verify/${actionId}`);
+    setResult(proof);
+    setRunning(false);
+  }
+
+  const steps: Step[] = result
+    ? [
+        { label: 'Blob fetched from Walrus', passed: result.steps.blobFetched },
+        { label: 'Hash matches blob ID (no tampering)', passed: result.steps.hashMatchesBlobId },
+        { label: 'SessionAnchored event found on Sui', passed: result.steps.onChainEventFound },
+        { label: 'On-chain blob ID matches recomputed ID', passed: result.steps.onChainBlobIdMatches },
+      ]
+    : [];
+
+  const statusColor =
+    result?.status === 'verified' ? 'bg-green-500/10 border-green-500/40 text-green-400'
+    : result?.status === 'tampered' ? 'bg-red-500/10 border-red-500/40 text-red-400'
+    : 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400';
+
+  return (
+    <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-zinc-200">Verify Integrity</h3>
+        <button
+          onClick={runVerify}
+          disabled={running}
+          className="px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium disabled:opacity-50"
+        >
+          {running ? 'Verifying...' : 'Run Verification'}
+        </button>
+      </div>
+
+      {result && (
+        <>
+          <div className={`rounded-lg border px-3 py-2 mb-3 ${statusColor}`}>
+            {result.status === 'verified' && '🟢 Cryptographically Verified'}
+            {result.status === 'tampered' && '🔴 TAMPERED — blob does not match anchor'}
+            {result.status === 'unanchored' && '🟡 Unanchored — session not yet anchored to mainnet'}
+          </div>
+          <ul className="space-y-1.5">
+            {steps.map((s, i) => (
+              <li key={i} className="flex items-center gap-2 text-xs text-zinc-400">
+                <span>{s.passed ? '✅' : '❌'}</span>
+                <span>{s.label}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
   );
 }
 ```
@@ -1452,10 +1774,16 @@ npm install -g @tatumio/blockchain-mcp
 
 ---
 
-### Day 8 — Polish + Demo Script
+### Day 8 — Verify Integrity + Polish
 
+- **Implement `VerifyService`** (`src/services/VerifyService.ts`) and the `GET /api/verify/:actionId` route
+- **Add `WalrusService.computeBlobId(bytes)`** — same blob-ID derivation Walrus uses internally
+- **Add `verify_action` Mastra tool** so the demo agent can self-audit at end of session
+- **Build `VerifyPanel` component** and slot it into the Session Detail page next to the Mainnet Anchor Panel
+- Test end-to-end happy path: log action → wait for Walrus flush → end session → click Verify → all four green checks
+- Test the tamper case: point an action's `blobId` at a different blob in SuiSQL; verify should turn red on step 2
 - Style everything (dark theme, clean typography)
-- Write demo script: start agent → watch it log → end session → see mainnet tx → view graph
+- Write demo script: start agent → watch it log → end session → see mainnet tx → **click Verify → all four checks animate green** → view graph
 - Add loading/error/empty states to all pages
 - Test on mobile viewport
 
@@ -1470,16 +1798,25 @@ npm install -g @tatumio/blockchain-mcp
 
 ---
 
-### Day 10 — Submission
+### Day 10 — Walrus Sites Deploy + Submission
 
+- **Deploy the frontend to Walrus Sites (the demo must open from `.walrus.site`, not localhost):**
+  1. Add `output: 'export'` to `next.config.ts`
+  2. `npm run build` → produces `./out`
+  3. Install `site-builder` CLI + author `sites-config.yaml`
+  4. `site-builder publish ./out --epochs 100` → capture the Sui object ID
+  5. Visit `https://<base36-id>.walrus.site` and confirm the dashboard loads end-to-end with no centralized host
+  6. Save the URL + object ID to `.env` and put the URL at the top of the submission README
 - Record demo video showing:
-  1. Dashboard live
+  1. Dashboard live — **opened via the `.walrus.site` URL, not localhost**
   2. Demo agent running (actions streaming in)
   3. Session ending → mainnet tx appearing
   4. SuiVision showing real tx
   5. Walrus blob link opening raw JSON
-  6. Knowledge graph rendering
-- Write submission README
+  6. **Click Verify Integrity → all four green checks animate in**
+  7. Knowledge graph rendering
+  8. Closing line: *"Nothing on this screen lives on a server I control. The data, the proofs, the dashboard — all on Walrus and Sui."*
+- Write submission README (lead with the `.walrus.site` URL + an example verifiable session link)
 - Submit
 
 ---
@@ -1495,7 +1832,9 @@ npm install -g @tatumio/blockchain-mcp
 | **Technical Depth** | Full data stack: agent → queue → Walrus → SuiSQL → Sui → UI. Not a toy. |
 | **Demo-ability** | One "run demo" button. Agent logs live. Mainnet tx appears in 10s. Graph renders. Judges can click SuiVision. |
 | **UI Polish** | Knowledge graph is visually distinctive. Dark theme. Blockchain proof badges look production-ready. |
+| **Verifiable, Not Just Logged** | One-click `VerifyPanel` re-fetches the blob, recomputes the hash, and matches it against the on-chain `SessionAnchored` event. Turns "verifiable" from a claim into a clickable feature judges can run themselves. |
+| **Fully Decentralized Stack** | The dashboard itself is deployed to **Walrus Sites** at `<id>.walrus.site`. Storage (Walrus) + index (SuiSQL) + proofs (Sui mainnet) + UI (Walrus Sites) — no centralized host at any layer. |
 
 ---
 
-*Cognito · Build Blueprint v1.0 · Solo Hackathon Edition · May 2026*
+*Cognito · Build Blueprint v1.1 · Verifiable + Uncensorable Edition · May 2026*
