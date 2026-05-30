@@ -10,23 +10,6 @@ export class SuiSQLService {
   async init(): Promise<void> {
     try {
       const { default: SuiSql } = await import('@fizzyflow/suisql');
-      // Tap all console output during init to surface SuiSQL internal logs
-      const origLog = console.log;
-      const origInfo = console.info;
-      const origError = console.error;
-      const origWarn = console.warn;
-      const safeStr = (a: any): string => {
-        if (a === null || a === undefined) return String(a);
-        if (typeof a !== 'object') return String(a);
-        try { return JSON.stringify(a); } catch { return `[${a?.constructor?.name ?? 'object'}]`; }
-      };
-      const tap = (level: string) => (...args: any[]) => {
-        logger.info(`[SuiSQL:${level}] ${args.map(safeStr).join(' ')}`);
-      };
-      console.log = tap('log');
-      console.info = tap('info');
-      console.error = tap('error');
-      console.warn = tap('warn');
       // Use SuiMaster from suidouble — the pattern SuiSQL examples use
       const { SuiMaster } = await import('suidouble');
 
@@ -38,30 +21,29 @@ export class SuiSQLService {
       await suiMaster.initialize();
       logger.info('SuiMaster address', { address: suiMaster.address });
 
+      const dbIdentifier = config.SUISQL_DB_OBJECT_ID
+        ? { id: config.SUISQL_DB_OBJECT_ID }
+        : { name: 'cognito-audit-db' };
+
       this.db = new SuiSql({
-        name: 'cognito-audit-db',
+        ...dbIdentifier,
         network: config.SUISQL_NETWORK,
-        debug: true,
+        debug: false,
         suiClient: suiMaster.client,
         signer: suiMaster.signer as any,
-        id: config.SUISQL_DB_OBJECT_ID || undefined,
         publisherUrl: config.WALRUS_PUBLISHER_URL,
         aggregatorUrl: config.WALRUS_AGGREGATOR_URL,
       });
 
       const state = await this.db.initialize();
 
-      // Restore console
-      console.log = origLog;
-      console.info = origInfo;
-      console.error = origError;
-      console.warn = origWarn;
-
       logger.info('SuiSQL state', { state });
 
       if (state === 'EMPTY') {
         await this.createTables();
       } else if (state === 'OK') {
+        // Always ensure tables exist — DB may have been created without schema on a previous run
+        await this.createTables();
         logger.info('SuiSQL loaded existing DB');
       } else {
         throw new SuiSQLError(`SuiSQL init returned state: ${state}`);
