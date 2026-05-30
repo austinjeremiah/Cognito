@@ -1,17 +1,22 @@
 import { WalrusClient } from '@mysten/walrus';
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { ActionLog } from '../types/ActionLog';
 import { WalrusWriteError } from '../types/errors';
 import { withRetry } from '../utils/retry';
 import { mainnetClient } from './TatumRPCService';
+import { parsePrivateKey } from '../utils/parsePrivateKey';
+import { config } from '../config';
 import logger from '../utils/logger';
 
 export class WalrusService {
   private client: WalrusClient;
+  private signer: Ed25519Keypair;
 
   constructor() {
+    this.signer = Ed25519Keypair.fromSecretKey(parsePrivateKey(config.SUI_PRIVATE_KEY) as any);
     this.client = new WalrusClient({
       network: 'testnet',
-      suiClient: mainnetClient,
+      suiClient: mainnetClient as any,
     });
   }
 
@@ -22,7 +27,7 @@ export class WalrusService {
           blob: data,
           deletable: false,
           epochs,
-          signer: undefined as any,
+          signer: this.signer,
         });
         logger.info('Walrus blob written', { blobId: result.blobId });
         return result.blobId;
