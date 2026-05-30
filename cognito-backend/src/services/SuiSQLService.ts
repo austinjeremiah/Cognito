@@ -1,7 +1,6 @@
 import { ActionLog, Session, AgentRecord } from '../types/ActionLog';
 import { SuiSQLError } from '../types/errors';
 import { config } from '../config';
-import { testnetClient } from './TatumRPCService';
 import logger from '../utils/logger';
 
 export class SuiSQLService {
@@ -11,21 +10,53 @@ export class SuiSQLService {
   async init(): Promise<void> {
     try {
       const { default: SuiSql } = await import('@fizzyflow/suisql');
-      const { Ed25519Keypair } = await import('@mysten/sui/keypairs/ed25519');
+      // Tap all console output during init to surface SuiSQL internal logs
+      const origLog = console.log;
+      const origInfo = console.info;
+      const origError = console.error;
+      const origWarn = console.warn;
+      const safeStr = (a: any): string => {
+        if (a === null || a === undefined) return String(a);
+        if (typeof a !== 'object') return String(a);
+        try { return JSON.stringify(a); } catch { return `[${a?.constructor?.name ?? 'object'}]`; }
+      };
+      const tap = (level: string) => (...args: any[]) => {
+        logger.info(`[SuiSQL:${level}] ${args.map(safeStr).join(' ')}`);
+      };
+      console.log = tap('log');
+      console.info = tap('info');
+      console.error = tap('error');
+      console.warn = tap('warn');
+      // Use SuiMaster from suidouble — the pattern SuiSQL examples use
+      const { SuiMaster } = await import('suidouble');
 
-      const keypair = Ed25519Keypair.fromSecretKey(config.SUI_PRIVATE_KEY);
+      const suiMaster = new SuiMaster({
+        client: config.SUISQL_NETWORK,
+        privateKey: config.SUI_PRIVATE_KEY,
+        debug: false,
+      });
+      await suiMaster.initialize();
+      logger.info('SuiMaster address', { address: suiMaster.address });
 
       this.db = new SuiSql({
         name: 'cognito-audit-db',
         network: config.SUISQL_NETWORK,
-        suiClient: testnetClient as any,
-        signer: keypair,
+        debug: true,
+        suiClient: suiMaster.client,
+        signer: suiMaster.signer as any,
         id: config.SUISQL_DB_OBJECT_ID || undefined,
         publisherUrl: config.WALRUS_PUBLISHER_URL,
         aggregatorUrl: config.WALRUS_AGGREGATOR_URL,
       });
 
       const state = await this.db.initialize();
+
+      // Restore console
+      console.log = origLog;
+      console.info = origInfo;
+      console.error = origError;
+      console.warn = origWarn;
+
       logger.info('SuiSQL state', { state });
 
       if (state === 'EMPTY') {

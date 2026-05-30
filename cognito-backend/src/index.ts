@@ -23,8 +23,14 @@ async function bootstrap() {
   await cache.connect();
   logger.info('Redis connected');
 
-  await suiSql.init();
-  logger.info('SuiSQL initialized');
+  try {
+    await suiSql.init();
+    logger.info('SuiSQL initialized');
+  } catch (err) {
+    logger.warn('SuiSQL init failed — routes will return 503 until resolved', {
+      error: (err as Error).message,
+    });
+  }
 
   // Background jobs
   startWalrusBatchJob(walrus, suiSql, queue, cache);

@@ -4,13 +4,14 @@ import { config } from '../config';
 import { mainnetClient } from './TatumRPCService';
 import { SuiTxError } from '../types/errors';
 import { AnchorResult } from '../types/SuiTypes';
+import { parsePrivateKey } from '../utils/parsePrivateKey';
 import logger from '../utils/logger';
 
 export class SuiAnchorService {
   private keypair: Ed25519Keypair;
 
   constructor() {
-    this.keypair = Ed25519Keypair.fromSecretKey(config.SUI_PRIVATE_KEY);
+    this.keypair = Ed25519Keypair.fromSecretKey(parsePrivateKey(config.SUI_PRIVATE_KEY) as any);
   }
 
   async anchorSession(params: {

@@ -9,7 +9,11 @@ import { TTL } from '../services/CacheService';
 import { config } from '../config';
 import logger from '../utils/logger';
 
-const anchorService = new SuiAnchorService();
+let anchorService: SuiAnchorService | null = null;
+function getAnchorService(): SuiAnchorService {
+  if (!anchorService) anchorService = new SuiAnchorService();
+  return anchorService;
+}
 
 const startSessionSchema = z.object({
   agentId: z.string().min(1),
@@ -88,7 +92,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
     if (config.COGNITO_PACKAGE_ID && blobId) {
       try {
         const agent = await suiSql.getAllAgents().then((a) => a.find((x) => x.id === session.agentId));
-        anchorResult = await anchorService.anchorSession({
+        anchorResult = await getAnchorService().anchorSession({
           sessionId,
           agentId: session.agentId,
           agentName: agent?.name ?? session.agentId,
