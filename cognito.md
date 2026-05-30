@@ -125,7 +125,7 @@ Every action an agent takes is:
 ### Backend
 | Package | Version | Purpose |
 |---|---|---|
-| `@mastra/core` | latest | Agent framework, tool creation |
+| `@mastra/core` | latest | Agent framework, tool creation, built-in Groq provider |
 | `@mysten/sui` | latest | Sui SDK (gRPC client) |
 | `@mysten/walrus` | latest | Walrus blob read/write |
 | `@fizzyflow/suisql` | `0.0.28` | SQL DB on Walrus + Sui |
@@ -195,6 +195,14 @@ REDIS_URL=redis://localhost:6379
 PORT=3001
 NODE_ENV=development
 LOG_LEVEL=info
+
+# ─── GROQ (LLM for Mastra agent) ────────────────────────────
+GROQ_API_KEY=your_groq_api_key_here
+# Model options (all 131K context):
+#   groq/llama-3.1-8b-instant    → $0.05/$0.08 per 1M — fastest, use this
+#   groq/llama-3.3-70b-versatile → $0.59/$0.79 per 1M — smarter if needed
+#   groq/meta-llama/llama-4-scout-17b-16e-instruct → $0.11/$0.34 per 1M
+GROQ_MODEL=groq/llama-3.1-8b-instant
 
 # ─── FRONTEND (Next.js .env.local) ───────────────────────────
 NEXT_PUBLIC_API_URL=http://localhost:3001
@@ -1732,17 +1740,222 @@ npm install -g @tatumio/blockchain-mcp
 
 ### Day 4 — Mastra Agent + Tools
 
-- Set up Mastra instance with 4 tools:
+**Model:** `groq/llama-3.1-8b-instant` (free, 131K context, fast enough for demo)
+
+```typescript
+// src/mastra/agent.ts
+import { Agent } from '@mastra/core/agent';
+import { logActionTool } from './tools/logActionTool';
+import { queryHistoryTool } from './tools/queryHistoryTool';
+import { readBlobTool } from './tools/readBlobTool';
+import { verifyActionTool } from './tools/verifyActionTool';
+import { endSessionTool } from './tools/endSessionTool';
+
+export const cognitoAgent = new Agent({
+  id: 'cognito-agent',
+  name: 'Cognito Demo Agent',
+  instructions: `You are a demo AI agent whose every action is logged, stored on Walrus, and anchored to Sui mainnet.
+Use log_action to record every meaningful step you take.
+Use query_history to review your own past actions.
+Use verify_action to cryptographically confirm your logs are untampered.
+Use end_session when your task is complete — this anchors the session to Sui mainnet.`,
+  model: 'groq/llama-3.1-8b-instant',
+  tools: {
+    log_action: logActionTool,
+    query_history: queryHistoryTool,
+    read_blob: readBlobTool,
+    verify_action: verifyActionTool,
+    end_session: endSessionTool,
+  },
+});
+```
+
+- Set up Mastra instance with 5 tools (including `verify_action`):
   - `log_action` → POST /api/log
   - `query_history` → GET /api/history/:agentId
   - `read_blob` → GET /api/blob/:blobId
+  - `verify_action` → GET /api/verify/:actionId
   - `end_session` → POST /api/session/end
-- Write demo agent that:
-  1. Starts a session
-  2. Logs 5–10 actions (simulated web searches, code writes, decisions)
-  3. Queries its own history (proves self-aware memory)
-  4. Ends session (triggers mainnet anchor)
-- Run demo end-to-end
+
+---
+
+### The Demo Agent: Smart Contract Security Auditor
+
+**What it does:** The agent audits `agent_ledger.move` — the exact Move contract Cognito deploys to Sui mainnet. Every finding, every check, every decision is logged, stored on Walrus, and anchored to Sui.
+
+**The meta pitch to judges:** *"The AI audited the contract that audits the AI. And Cognito logged every step of that audit — verifiably, permanently, on Sui mainnet."*
+
+**Full action sequence — structured as a DAG for maximum knowledge graph visual impact:**
+
+```
+Action 1  [tool_use]   "Start audit session for agent_ledger.move"
+          parent: none — ROOT NODE
+               │
+Action 2  [code_write] "Parse agent_ledger.move — extract module, structs, entry functions"
+          parent: Action 1
+         ┌──────┼──────┐
+         │      │      │
+Action 3  [decision]   "Module structure identified: cognito::agent_ledger"
+          parent: Action 2
+
+Action 4  [decision]   "Entry functions identified: anchor_session()"
+          parent: Action 2
+
+Action 5  [decision]   "Structs identified: SessionAnchored event with 7 fields"
+          parent: Action 2
+               │                    │                    │
+Action 6  [code_write] "Checking access control on anchor_session"
+          parent: Action 4
+
+Action 7  [code_write] "Checking gas profile — loops, dynamic dispatch"
+          parent: Action 4
+
+Action 8  [code_write] "Checking timestamp source — epoch_timestamp_ms vs Clock"
+          parent: Action 4
+
+Action 9  [code_write] "Checking event field completeness — SessionAnchored struct"
+          parent: Action 5
+               │                    │                    │                   │
+Action 10 [decision]  "FINDING #1 MEDIUM: anchor_session is public entry, no
+                       capability guard. Anyone can emit SessionAnchored for any
+                       agent_id. Recommend: add signer whitelist."
+          parent: Action 6
+
+Action 11 [decision]  "FINDING #2 PASS: No loops, no dynamic dispatch, single
+                       event emit. Gas is predictable and minimal."
+          parent: Action 7
+
+Action 12 [decision]  "FINDING #3 INFO: epoch_timestamp_ms used — coarse
+                       granularity. Acceptable for audit logs."
+          parent: Action 8
+
+Action 13 [decision]  "FINDING #4 PASS: All 7 event fields present. blob_id +
+                       suisql_object_id correctly captured. Provenance complete."
+          parent: Action 9
+                    └──────────────┬─────────────────────┘
+                                   │  (all 4 findings converge)
+Action 14 [decision]  "Cross-referencing all findings: 1 MEDIUM, 2 PASS, 1 INFO.
+                       Audit score: 7.5/10. Contract is safe to deploy."
+          parent: Action 10 + Action 11 + Action 12 + Action 13
+          ┌────────────────────────┤
+          │                        │
+Action 15 [tool_use]  "query_history: reviewing full audit chain to confirm
+                       no steps were missed or skipped"
+          parent: Action 14
+
+Action 16 [tool_use]  "verify_action on Finding #1 (Action 10) — re-fetch
+                       blob from Walrus, recompute hash, match on-chain anchor"
+          parent: Action 10 + Action 14   ← cross-edge BACK to finding
+          │                        │
+          └──────────┬─────────────┘
+                     │
+Action 17 [code_write] "Final security report: { findings: 4, critical: 0,
+                        medium: 1, pass: 2, info: 1, score: '7.5/10',
+                        verifiedUntampered: true, auditedBy: 'cognito-agent' }"
+          parent: Action 15 + Action 16
+
+Action 18 [tool_use]  "end_session → Sui mainnet anchor fires"
+          parent: Action 17 — TERMINAL NODE
+          → Returns: { txDigest, blobId, suiVisionUrl }
+```
+
+**Knowledge graph structure this produces:**
+- 1 root node → branches into 3 at parse step → each branch splits into check → finding
+- All 4 finding nodes **converge** into Action 14 (synthesis) — visual centrepiece
+- Action 16 (verify) has a **cross-edge back** to Action 10 (the finding it's verifying)
+- Two paths merge again at Action 17 → clean terminal at Action 18
+- **Result: a proper web-shaped DAG, not a line**
+
+**The `additionalParents` pattern — how multi-parent edges work:**
+
+Actions 14 and 16 have multiple parents. Store extras in `metadata` so the graph builder can draw all edges:
+
+```typescript
+// Action 14 — converges all 4 findings
+await logAction({
+  actionType: 'decision',
+  description: 'Cross-referencing all findings...',
+  parentActionId: action10.id,           // primary parent
+  metadata: {
+    additionalParents: [action11.id, action12.id, action13.id],
+    findings: { medium: 1, pass: 2, info: 1 },
+    score: '7.5/10',
+  }
+});
+
+// Action 16 — verify cross-references back to the specific finding
+await logAction({
+  actionType: 'tool_use',
+  description: 'verify_action on Finding #1...',
+  parentActionId: action14.id,           // primary parent
+  metadata: {
+    additionalParents: [action10.id],    // cross-edge back to finding
+    verifyResult: 'untampered',
+  }
+});
+```
+
+**Frontend graph builder reads both fields:**
+```typescript
+// src/lib/graphBuilder.ts
+function buildEdges(actions: ActionLog[]) {
+  const edges = [];
+  for (const action of actions) {
+    if (action.parentActionId) {
+      edges.push({ source: action.parentActionId, target: action.id });
+    }
+    const extra = action.metadata?.additionalParents ?? [];
+    for (const parentId of extra) {
+      edges.push({ source: parentId, target: action.id });
+    }
+  }
+  return edges;
+}
+```
+
+**Why this is the strongest possible demo:**
+- 18 real actions, zero dummy ones — every log is genuine analysis
+- Finding #1 (access control gap) is a **real vulnerability** — makes it credible
+- **The graph visually proves complexity** — judges see a web, not a list
+- Action 15 shows the agent reading its own memory mid-audit — live agentic memory
+- Action 16 runs `verify_action` inside the demo — "verifiable" demonstrates itself
+- The convergence at Action 14 is the visual centrepiece — 4 nodes pointing at one
+- The cross-edge from Action 16 back to Action 10 creates the graph's defining loop
+
+**Agent instructions:**
+```typescript
+instructions: `You are a smart contract security auditor. Your task is to audit agent_ledger.move —
+the Move contract Cognito itself deploys to Sui mainnet to anchor AI agent sessions.
+
+Structure your audit as follows — call log_action for EVERY step:
+
+PARSE PHASE (branch from root):
+- Parse the contract source, then log 3 parallel findings: module structure, entry functions, structs
+
+CHECK PHASE (branch from each finding):
+- For each entry function: run access control check, gas profile check, timestamp check
+- For each struct: run field completeness check
+- Log each check as a separate action with the relevant parse action as parent
+
+FINDINGS PHASE:
+- Log one decision action per check with your finding and severity
+- parentActionId = the check action that produced this finding
+
+SYNTHESIS PHASE (converge all findings):
+- Log one cross-reference action with ALL finding action IDs in metadata.additionalParents
+- This is the convergence node — critical for the knowledge graph
+
+VERIFICATION PHASE:
+- Call query_history to confirm your audit chain is complete
+- Call verify_action on your MEDIUM severity finding, with that finding's action ID as additionalParent
+- This creates the cross-edge back to the finding
+
+REPORT PHASE:
+- Generate final JSON security report
+- Call end_session — this anchors the entire audit permanently to Sui mainnet`,
+```
+
+**If `llama-3.1-8b-instant` struggles with multi-parent metadata, upgrade to `groq/llama-3.3-70b-versatile`.**
 
 ---
 
