@@ -16,7 +16,10 @@ const logActionSchema = z.object({
 });
 
 export async function logRoutes(app: FastifyInstance): Promise<void> {
-  app.post('/api/log', { preHandler: requireApiKey }, async (req, reply) => {
+  app.post('/api/log', {
+    preHandler: requireApiKey,
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+  }, async (req, reply) => {
     const result = logActionSchema.safeParse(req.body);
     if (!result.success) {
       throw new ValidationError(result.error.errors.map((e) => e.message).join(', '));

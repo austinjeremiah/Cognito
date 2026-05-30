@@ -9,6 +9,8 @@ import { sessionRoutes } from './routes/session';
 import { logRoutes } from './routes/log';
 import { historyRoutes } from './routes/history';
 import { blobRoutes } from './routes/blob';
+import { verifyRoutes } from './routes/verify';
+import { graphRoutes } from './routes/graph';
 import { suiSql, walrus, cache, queue } from './services/container';
 import { startWalrusBatchJob } from './jobs/walrusBatchJob';
 
@@ -29,7 +31,11 @@ async function bootstrap() {
 
   // Plugins
   await app.register(cors, {
-    origin: config.NODE_ENV === 'production' ? false : true,
+    origin:
+      config.NODE_ENV === 'production'
+        ? ['https://cognito.walrus.site']
+        : ['http://localhost:3000', 'http://localhost:3001'],
+    credentials: true,
   });
 
   await app.register(rateLimit, { max: 100, timeWindow: '1 minute' });
@@ -40,6 +46,8 @@ async function bootstrap() {
   await app.register(logRoutes);
   await app.register(historyRoutes);
   await app.register(blobRoutes);
+  await app.register(verifyRoutes);
+  await app.register(graphRoutes);
 
   app.setErrorHandler(handleError);
 

@@ -2,10 +2,14 @@ import { FastifyInstance } from 'fastify';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { requireApiKey } from '../middleware/auth';
-import { suiSql, cache } from '../services/container';
-import { ValidationError } from '../types/errors';
+import { suiSql, walrus, cache, queue } from '../services/container';
+import { SuiAnchorService } from '../services/SuiAnchorService';
+import { ValidationError, NotFoundError } from '../types/errors';
 import { TTL } from '../services/CacheService';
+import { config } from '../config';
 import logger from '../utils/logger';
+
+const anchorService = new SuiAnchorService();
 
 const startSessionSchema = z.object({
   agentId: z.string().min(1),
@@ -46,5 +50,77 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
 
     await cache.set(cacheKey, session, TTL.SESSION);
     return reply.send(session);
+  });
+
+  app.post('/api/session/end', { preHandler: requireApiKey }, async (req, reply) => {
+    const { sessionId } = req.body as { sessionId?: string };
+    if (!sessionId) throw new ValidationError('sessionId is required');
+
+    const session = await suiSql.getSession(sessionId);
+    if (!session) throw new NotFoundError(`Session ${sessionId} not found`);
+
+    const now = Date.now();
+
+    // Flush any queued actions for this session to Walrus first
+    const pendingBatches = queue.flush(sessionId);
+    const pending = pendingBatches.get(sessionId) ?? [];
+    let blobId = session.blobId;
+
+    if (pending.length > 0) {
+      try {
+        blobId = await walrus.writeBatch(pending);
+        for (const a of pending) {
+          await suiSql.updateActionBlobId(a.id, blobId);
+        }
+        await suiSql.updateSession(sessionId, { blobId });
+        logger.info('Flushed pending actions on session end', { sessionId, count: pending.length, blobId });
+      } catch (err) {
+        logger.error('Walrus flush failed on session end', { sessionId, error: (err as Error).message });
+      }
+    }
+
+    // Mark session ended
+    await suiSql.updateSession(sessionId, { endedAt: now });
+
+    let anchorResult: { txDigest: string; suiVisionUrl: string } | null = null;
+
+    // Anchor to Sui mainnet (only if contract is deployed and we have a blobId)
+    if (config.COGNITO_PACKAGE_ID && blobId) {
+      try {
+        const agent = await suiSql.getAllAgents().then((a) => a.find((x) => x.id === session.agentId));
+        anchorResult = await anchorService.anchorSession({
+          sessionId,
+          agentId: session.agentId,
+          agentName: agent?.name ?? session.agentId,
+          actionCount: session.actionCount + pending.length,
+          blobId,
+          suisqlObjectId: config.SUISQL_DB_OBJECT_ID ?? '0x0',
+        });
+
+        await suiSql.updateSession(sessionId, { mainnetTxDigest: anchorResult.txDigest });
+      } catch (err) {
+        logger.error('Mainnet anchor failed (session still ended)', { sessionId, error: (err as Error).message });
+      }
+    } else {
+      logger.warn('Skipping mainnet anchor — COGNITO_PACKAGE_ID not set or no blobId', { sessionId });
+    }
+
+    // Persist SuiSQL state to blockchain
+    await suiSql.persist();
+
+    // Invalidate caches
+    await cache.del(`session:${sessionId}`);
+    await cache.del(`session-actions:${sessionId}`);
+    await cache.del(`history:${session.agentId}`);
+
+    logger.info('Session ended', { sessionId, anchored: !!anchorResult });
+
+    return reply.send({
+      sessionId,
+      endedAt: now,
+      blobId,
+      mainnetTxDigest: anchorResult?.txDigest ?? null,
+      suiVisionUrl: anchorResult?.suiVisionUrl ?? null,
+    });
   });
 }
