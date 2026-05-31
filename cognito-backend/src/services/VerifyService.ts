@@ -1,4 +1,4 @@
-import { mainnetClient } from './TatumRPCService';
+import { testnetClient } from './TatumRPCService';
 import { WalrusService } from './WalrusService';
 import { SuiSQLService } from './SuiSQLService';
 import logger from '../utils/logger';
@@ -59,7 +59,7 @@ export class VerifyService {
 
     if (session?.mainnetTxDigest) {
       try {
-        const tx = await (mainnetClient as any).getTransactionBlock({
+        const tx = await (testnetClient as any).getTransactionBlock({
           digest: session.mainnetTxDigest,
           options: { showEvents: true },
         });

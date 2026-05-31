@@ -1,7 +1,7 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { config } from '../config';
-import { mainnetClient } from './TatumRPCService';
+import { testnetClient } from './TatumRPCService';
 import { SuiTxError } from '../types/errors';
 import { AnchorResult } from '../types/SuiTypes';
 import { parsePrivateKey } from '../utils/parsePrivateKey';
@@ -41,23 +41,23 @@ export class SuiAnchorService {
     });
 
     try {
-      const txBytes = await tx.build({ client: mainnetClient as any });
+      const txBytes = await tx.build({ client: testnetClient as any });
       const { signature } = await this.keypair.signTransaction(txBytes);
 
-      const result = await (mainnetClient as any).executeTransactionBlock({
+      const result = await (testnetClient as any).executeTransactionBlock({
         transactionBlock: Buffer.from(txBytes).toString('base64'),
         signature,
         options: { showEvents: true, showEffects: true },
       });
 
       const digest: string = result.digest;
-      const suiVisionUrl = `https://suivision.xyz/txblock/${digest}`;
+      const suiVisionUrl = `https://testnet.suivision.xyz/txblock/${digest}`;
 
-      logger.info('Session anchored on mainnet', { digest, sessionId: params.sessionId });
+      logger.info('Session anchored on testnet', { digest, sessionId: params.sessionId });
 
       return { txDigest: digest, suiVisionUrl };
     } catch (err) {
-      throw new SuiTxError(`Mainnet anchor failed: ${(err as Error).message}`);
+      throw new SuiTxError(`Testnet anchor failed: ${(err as Error).message}`);
     }
   }
 }
