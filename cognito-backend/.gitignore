@@ -33,3 +33,6 @@ Thumbs.db
 
 # Phase tracking docs
 Phase*.md
+
+# Move build artifacts
+move/build/
