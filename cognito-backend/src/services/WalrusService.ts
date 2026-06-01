@@ -1,26 +1,46 @@
 import { WalrusClient } from '@mysten/walrus';
-import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { ActionLog } from '../types/ActionLog';
 import { WalrusWriteError } from '../types/errors';
 import { withRetry } from '../utils/retry';
-import { mainnetClient } from './TatumRPCService';
-import { parsePrivateKey } from '../utils/parsePrivateKey';
 import { config } from '../config';
 import logger from '../utils/logger';
 
 export class WalrusService {
-  private client: WalrusClient;
-  private signer: Ed25519Keypair;
+  private client!: WalrusClient;
+  private signer: any;
+  private initPromise: Promise<void>;
 
   constructor() {
-    this.signer = Ed25519Keypair.fromSecretKey(parsePrivateKey(config.SUI_PRIVATE_KEY) as any);
-    this.client = new WalrusClient({
-      network: 'testnet',
-      suiClient: mainnetClient as any,
-    });
+    this.initPromise = this.initAsync();
   }
 
-  async writeBlob(data: Uint8Array, epochs = 10): Promise<string> {
+  private async initAsync(): Promise<void> {
+    const { SuiMaster } = await import('suidouble');
+    const suiMaster = new SuiMaster({
+      client: 'testnet',
+      privateKey: config.SUI_PRIVATE_KEY,
+      debug: false,
+    });
+    await suiMaster.initialize();
+    this.signer = suiMaster.signer;
+    this.client = new WalrusClient({
+      network: 'testnet',
+      suiClient: suiMaster.client,
+      storageNodeClientOptions: { timeout: 120000 },
+      uploadRelay: {
+        host: 'https://upload-relay.testnet.walrus.space',
+        sendTip: { max: 1000 },
+      },
+    });
+    logger.info('WalrusService initialized');
+  }
+
+  private async ensureReady(): Promise<void> {
+    await this.initPromise;
+  }
+
+  async writeBlob(data: Uint8Array, epochs = 3): Promise<string> {
+    await this.ensureReady();
     return withRetry(
       async () => {
         const result = await this.client.writeBlob({
@@ -32,13 +52,14 @@ export class WalrusService {
         logger.info('Walrus blob written', { blobId: result.blobId });
         return result.blobId;
       },
-      3,
-      1000,
+      5,
+      8000,
       'walrus-write'
     );
   }
 
   async readBlob(blobId: string): Promise<Uint8Array> {
+    await this.ensureReady();
     return withRetry(
       async () => {
         const bytes = await this.client.readBlob({ blobId });
@@ -46,7 +67,7 @@ export class WalrusService {
         return bytes;
       },
       3,
-      500,
+      1000,
       'walrus-read'
     );
   }

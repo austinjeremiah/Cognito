@@ -26,7 +26,15 @@ export class SuiAnchorService {
       throw new SuiTxError('COGNITO_PACKAGE_ID not set — deploy Move contract first');
     }
 
+    // gRPC client needed for tx.build() — Tatum JSON-RPC doesn't expose suix_getLatestSuiSystemState
+    const { SuiGrpcClient, GrpcWebFetchTransport } = await import('@mysten/sui/grpc');
+    const grpcClient = new SuiGrpcClient({
+      network: 'testnet',
+      transport: new GrpcWebFetchTransport({ baseUrl: 'https://fullnode.testnet.sui.io:443' }),
+    });
+
     const tx = new Transaction();
+    tx.setSender(this.keypair.toSuiAddress());
 
     tx.moveCall({
       target: `${config.COGNITO_PACKAGE_ID}::${config.COGNITO_MODULE}::anchor_session`,
@@ -41,7 +49,8 @@ export class SuiAnchorService {
     });
 
     try {
-      const txBytes = await tx.build({ client: testnetClient as any });
+      // Build using gRPC (needs system state), execute via Tatum testnet RPC
+      const txBytes = await tx.build({ client: grpcClient as any });
       const { signature } = await this.keypair.signTransaction(txBytes);
 
       const result = await (testnetClient as any).executeTransactionBlock({
@@ -53,7 +62,7 @@ export class SuiAnchorService {
       const digest: string = result.digest;
       const suiVisionUrl = `https://testnet.suivision.xyz/txblock/${digest}`;
 
-      logger.info('Session anchored on testnet', { digest, sessionId: params.sessionId });
+      logger.info('Session anchored on testnet via Tatum', { digest, sessionId: params.sessionId });
 
       return { txDigest: digest, suiVisionUrl };
     } catch (err) {

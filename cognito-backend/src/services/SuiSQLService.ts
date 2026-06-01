@@ -162,7 +162,7 @@ export class SuiSQLService {
     this.ensureInit();
     const rows = await this.db.query(`SELECT * FROM sessions WHERE id = ? LIMIT 1`, [sessionId]);
     if (!rows?.length) return null;
-    return rows[0] as Session;
+    return this.rowToSession(rows[0]);
   }
 
   async queryHistory(agentId: string, limit = 50): Promise<ActionLog[]> {
@@ -189,7 +189,7 @@ export class SuiSQLService {
       `SELECT * FROM sessions WHERE agent_id = ? ORDER BY started_at DESC`,
       [agentId]
     );
-    return rows ?? [];
+    return (rows ?? []).map((r: any) => this.rowToSession(r));
   }
 
   async getAllAgents(): Promise<AgentRecord[]> {
@@ -218,6 +218,18 @@ export class SuiSQLService {
     this.ensureInit();
     await this.db.sync();
     logger.info('SuiSQL synced to blockchain');
+  }
+
+  private rowToSession(row: any): Session {
+    return {
+      id: row.id,
+      agentId: row.agent_id,
+      startedAt: row.started_at,
+      endedAt: row.ended_at ?? undefined,
+      actionCount: row.action_count ?? 0,
+      blobId: row.blob_id ?? undefined,
+      mainnetTxDigest: row.mainnet_tx_digest ?? undefined,
+    };
   }
 
   private rowToAction(row: any): ActionLog {
