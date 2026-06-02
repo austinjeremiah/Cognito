@@ -1,8 +1,8 @@
 import { Mastra } from '@mastra/core/mastra';
-import { cognitoAgent } from './agent';
+import { cognitoAgent, auditAgent1, auditAgent2, demoAgent } from './agent';
 
 export const mastra = new Mastra({
-  agents: { cognitoAgent },
+  agents: { cognitoAgent, auditAgent1, auditAgent2, demoAgent },
 });
 
-export { cognitoAgent };
+export { cognitoAgent, auditAgent1, auditAgent2, demoAgent };

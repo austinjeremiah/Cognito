@@ -74,7 +74,7 @@ async function run() {
   });
 
   // ── END SESSION → mainnet anchor ──
-  console.log('\n⚓ Ending session → Sui mainnet anchor...\n');
+  console.log('\n⚓ Ending session → Sui testnet anchor...\n');
   const end = await post('/api/session/end', { sessionId });
   console.log(`✅ Session ended`);
   console.log(`   blobId:          ${end.blobId ?? '(pending Walrus batch)'}`);
