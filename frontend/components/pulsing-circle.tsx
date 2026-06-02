@@ -16,14 +16,13 @@ export default function PulsingCircle() {
           thickness={0.1}
           softness={0.2}
           intensity={5}
-          spotsPerColor={5}
           spotSize={0.1}
           pulse={0.1}
           smoke={0.5}
           smokeSize={4}
           scale={0.65}
           rotation={0}
-          frame={9161408.251009725}
+          frame={0}
           style={{
             width: "60px",
             height: "60px",
@@ -48,7 +47,7 @@ export default function PulsingCircle() {
           </defs>
           <text className="text-sm fill-white/80 instrument">
             <textPath href="#circle" startOffset="0%">
-              {"wav0 WAV0 AI wav0 WAV0 AI wav0"} 
+              {"Cognito · Walrus · Sui · Cognito · Walrus · Sui ·"}
             </textPath>
           </text>
         </motion.svg>

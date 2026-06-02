@@ -7,7 +7,7 @@ import { useRef } from "react"
 interface FeatureSectionProps {
   title: string
   description: string
-  icon: React.ReactNode
+  icon?: React.ReactNode
   delay?: number
   index?: number
   metric?: string

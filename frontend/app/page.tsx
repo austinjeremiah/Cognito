@@ -4,7 +4,7 @@ import { ChatPill } from "@/components/chat-pill"
 import { Footer } from "@/components/footer"
 import { WaterShaderBackground } from "@/components/ui/water-shader-background"
 
-export default function WAV0Landing() {
+export default function CognitoLanding() {
   return (
     <div className="min-h-screen bg-background relative">
       <div className="relative z-10">
@@ -17,19 +17,19 @@ export default function WAV0Landing() {
           <div className="max-w-6xl mx-auto relative z-10">
             <div className="text-center mb-20">
               <h2 className="text-5xl md:text-6xl font-medium text-foreground mb-6 tracking-tight">
-                Everything you need
+                The full stack
               </h2>
-              <p className="text-xl text-muted-foreground">Clean tools, predictable results, zero friction.</p>
+              <p className="text-xl text-muted-foreground">Verifiable at every layer. Uncensorable end to end.</p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
-              <FeatureSection title="WAV0 AI" description="Describe your idea. Get a track. Iterate fast." index={0} />
+              <FeatureSection title="Tatum RPC" description="All Sui blockchain calls routed through Tatum's production-grade RPC gateway — mainnet anchors, session queries, and event lookups. Reliable, fast, swappable." index={0} />
 
-              <FeatureSection title="Studio" description="Browser-native DAW with zero downloads." index={1} />
+              <FeatureSection title="Walrus Storage" description="Every agent action batch stored as a content-addressed blob on Walrus. The blob ID is the cryptographic hash — any tampering is mathematically detectable." index={1} />
 
-              <FeatureSection title="Vault" description="Secure storage with version control." index={2} />
+              <FeatureSection title="Sui Mainnet Anchor" description="One immutable anchor transaction per session on Sui mainnet via Tatum RPC. Ties the Walrus blob ID and SuiSQL object to a permanent on-chain event." index={2} />
 
-              <FeatureSection title="Export" description="One-click export to any format or platform." index={3} />
+              <FeatureSection title="Knowledge Graph" description="Agent actions visualized as a DAG. See the full decision tree: branches, convergence points, and cross-edges between findings and verifications." index={3} />
             </div>
           </div>
         </section>
