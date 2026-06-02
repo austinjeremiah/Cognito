@@ -63,7 +63,7 @@
     "react-day-picker": "9.8.0",
     "react-dom": "^19",
     "react-error-boundary": "latest",
-    "react-force-graph": "^1.48.2",
+    "react-force-graph-2d": "^1.29.1",
     "react-hook-form": "^7.60.0",
     "react-native": "latest",
     "react-resizable-panels": "^2.1.7",

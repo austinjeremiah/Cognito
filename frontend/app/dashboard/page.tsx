@@ -119,12 +119,12 @@ export default function DashboardPage() {
           )}
 
           {activity.data?.map((action) => (
-            <div key={action.id} className="px-4 py-3 flex items-center gap-3 flex-wrap">
-              <ActionTypeIcon type={action.actionType} />
+            <div key={action.id} className="px-4 py-3 flex items-center gap-3">
+              <ActionTypeIcon type={action.actionType} className="shrink-0" />
               <span className="text-sm text-foreground flex-1 min-w-0 truncate">
                 {action.description}
               </span>
-              <div className="flex items-center gap-2 ml-auto shrink-0">
+              <div className="shrink-0 flex items-center gap-2">
                 {action.blobId && <BlobLink blobId={action.blobId} />}
                 <span className="text-xs text-muted-foreground whitespace-nowrap">
                   {formatDistanceToNow(new Date(action.ts), { addSuffix: true })}

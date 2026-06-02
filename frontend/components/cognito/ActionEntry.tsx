@@ -20,7 +20,7 @@ function DescriptionCell({ description }: { description: string }) {
   const parsed = tryParseJson(description)
   if (parsed) {
     return (
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5">
         {Object.entries(parsed).map(([k, v]) => (
           <span key={k} className="text-xs font-mono bg-muted/60 px-1.5 py-0.5 rounded text-muted-foreground">
             <span className="text-foreground">{k}</span>: {String(v)}
@@ -29,25 +29,31 @@ function DescriptionCell({ description }: { description: string }) {
       </div>
     )
   }
-  return <span className="text-sm text-foreground truncate">{description}</span>
+  return (
+    <span className="text-sm text-foreground line-clamp-2">{description}</span>
+  )
 }
 
 export function ActionEntry({ action, onSelect }: ActionEntryProps) {
   return (
     <div
-      className={`px-4 py-3 flex items-start gap-3 flex-wrap hover:bg-muted/30 transition-colors ${onSelect ? "cursor-pointer" : ""}`}
+      className={`px-4 py-3 flex items-start gap-3 hover:bg-muted/30 transition-colors ${onSelect ? "cursor-pointer" : ""}`}
       onClick={() => onSelect?.(action)}
     >
       <div className="mt-0.5 shrink-0">
         <ActionTypeIcon type={action.actionType} />
       </div>
+
+      {/* Description + action ID — takes remaining space, truncates */}
       <div className="flex-1 min-w-0 space-y-1">
         <DescriptionCell description={action.description} />
         <p className="text-xs text-muted-foreground font-mono">
           {action.id.slice(0, 8)}
         </p>
       </div>
-      <div className="flex items-center gap-2 ml-auto shrink-0">
+
+      {/* Blob + timestamp — fixed right column, never wraps */}
+      <div className="shrink-0 flex flex-col items-end gap-1">
         {action.blobId && <BlobLink blobId={action.blobId} />}
         <span className="text-xs text-muted-foreground whitespace-nowrap">
           {formatDistanceToNow(new Date(action.ts), { addSuffix: true })}

@@ -73,7 +73,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ sessio
           </div>
           <div className="rounded-xl border border-border bg-card/50 p-4">
             <p className="text-xs text-muted-foreground uppercase tracking-widest mb-2">Storage</p>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col items-start gap-2">
               {session.blobId && <BlobLink blobId={session.blobId} />}
               {session.mainnetTxDigest && <TxBadge digest={session.mainnetTxDigest} label="Anchor tx" />}
             </div>

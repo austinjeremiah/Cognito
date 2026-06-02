@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 const links = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/agents", label: "Agents" },
+  { href: "/graph/cognito-security-auditor", label: "Graph" },
 ]
 
 export function Navbar() {
