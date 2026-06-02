@@ -12,7 +12,7 @@ export default function HeroContent() {
         >
           <div className="absolute top-0 left-1 right-1 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent rounded-full" />
           <span className="text-muted-foreground text-xs md:text-sm relative z-10 font-light">
-            Verifiable AI Agent Memory · Tatum · Walrus · Sui
+            Cryptographic Proof of Agent Actions · Tatum · Walrus · Sui
           </span>
         </div>
       </div>
@@ -23,12 +23,12 @@ export default function HeroContent() {
       >
         <span className="instrument gold-shimmer mx-0 text-center font-normal font-mono">Cognito</span>
         <br />
-        <span className="font-light text-foreground tracking-tight">Agent Memory Layer</span>
+        <span className="font-light text-foreground tracking-tight">Agent Audit Trail</span>
       </h1>
 
       <p className="font-light text-muted-foreground mb-8 leading-relaxed max-w-xl mx-auto font-mono tracking-tight text-balance text-xs md:text-sm">
-        Every agent action logged, stored on Walrus, indexed in SuiSQL, and anchored to Sui.
-        Cryptographically verifiable. Permanently uncensorable.
+        Every agent action logged, stored on Walrus, and anchored to Sui via Tatum RPC.
+        Tamper-proof. Publicly verifiable. No trust required.
       </p>
 
       <div className="flex items-center gap-4 flex-wrap justify-center">

@@ -42,7 +42,7 @@ export function Footer() {
         </div>
 
         <div className="text-center pt-8 border-t border-border">
-          <p className="text-xs text-muted-foreground">© 2026 Cognito · Verifiable AI Agent Memory · Built on Tatum · Walrus · Sui</p>
+          <p className="text-xs text-muted-foreground">© 2026 Cognito · Verifiable Agent Audit Trail · Built on Tatum · Walrus · Sui</p>
         </div>
       </div>
     </footer>

@@ -7,9 +7,9 @@ import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 
 export const metadata: Metadata = {
-  title: "Cognito — Verifiable AI Agent Memory",
+  title: "Cognito — Verifiable Agent Audit Trail",
   description:
-    "Every agent action logged, stored on Walrus, indexed in SuiSQL, and anchored to Sui mainnet. Cryptographically verifiable. Permanently uncensorable.",
+    "Cryptographic proof of every agent action. Logged, stored on Walrus, anchored to Sui via Tatum RPC. Tamper-proof. Publicly verifiable. Permanently uncensorable.",
   icons: {
     icon: [{ url: "/favicon.ico", sizes: "any" }],
     apple: "/apple-icon.png",
