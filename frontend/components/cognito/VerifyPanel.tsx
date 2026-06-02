@@ -17,7 +17,7 @@ type State = "idle" | "loading" | "done"
 
 const STEPS = [
   { key: "blobFetched",           label: "Blob fetched from Walrus" },
-  { key: "hashMatchesBlobId",     label: "SHA-256 matches blob ID" },
+  { key: "hashMatchesBlobId",     label: "Action record found in blob" },
   { key: "onChainEventFound",     label: "On-chain anchor event found" },
   { key: "onChainBlobIdMatches",  label: "On-chain blob ID matches" },
 ] as const
