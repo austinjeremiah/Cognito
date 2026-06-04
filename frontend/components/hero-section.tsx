@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion"
 import { useRef } from "react"
-import { ThemeToggle } from "./theme-toggle"
 import { HeatmapShaderBackground } from "./ui/heatmap-shader-background"
 import HeroContent from "./hero-content"
 import PulsingCircle from "./pulsing-circle"
@@ -26,9 +25,6 @@ export function HeroSection() {
           </div>
         </motion.div>
 
-        <div className="absolute top-6 left-6 md:top-8 md:left-8 z-40">
-          <ThemeToggle />
-        </div>
       </div>
 
       <PulsingCircle />

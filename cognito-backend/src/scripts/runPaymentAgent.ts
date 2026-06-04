@@ -20,12 +20,12 @@ async function startSession(): Promise<{ sessionId: string; agentId: string }> {
 }
 
 async function runPaymentAgent() {
-  console.log('\n💳 Cognito x402 THREAT INTEL AGENT\n');
-  console.log('   Recall → x402 payment → audit → anchor\n');
+  console.log('\n🔍 Cognito THREAT INTEL AGENT\n');
+  console.log('   MemWal recall → fetch premium data → audit findings → anchor on Sui\n');
   console.log('─'.repeat(60));
 
   // Check MemWal for past purchases before agent runs
-  console.log('\n🧠 Checking MemWal for cached threat intel...');
+  console.log('\n🧠 Checking MemWal for cached threat intel data...');
   const memories = await recall('threat intelligence agent_ledger.move purchase', 3);
 
   if (memories.length > 0) {
@@ -41,7 +41,7 @@ async function runPaymentAgent() {
   const { sessionId, agentId } = await startSession();
   console.log(`✅ Session: ${sessionId}`);
   console.log(`   Agent:   ${agentId}\n`);
-  console.log('🤖 Agent running (9 steps: decision → recall-check → x402 payment → findings → synthesis → verify → end)...\n');
+  console.log('🤖 Agent running (9 steps: recall → fetch premium data → findings → synthesis → verify → anchor on Sui)...\n');
 
   // Prepend memory context to prompt if available
   const memoryContext = memories.length > 0
@@ -81,7 +81,7 @@ Run the 9-step threat intelligence workflow now. Use exact IDs returned by each 
 📋 History: GET /api/history/${AGENT_ID}
    Session: ${sessionId}
 
-💡 Run again — MemWal will recall the purchase and agent skips re-buying.
+💡 Run again — MemWal will recall the past fetch and agent skips duplicate calls.
 `);
 }
 

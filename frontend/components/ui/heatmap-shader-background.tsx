@@ -35,7 +35,7 @@ export const HeatmapShaderBackground = () => {
             width={dimensions.width}
             height={dimensions.height}
             image="/logo-wav0.svg"
-            colors={["#8c8c8c", "#ffffff", "#3265e7", "#6bd8ff", "#ffe77a"]}
+            colors={["#3d2200", "#c8960c", "#f5c842", "#ffd700", "#fff4a3"]}
             colorBack="#000000"
             contour={0.5}
             angle={0}

@@ -92,11 +92,11 @@ After end_session, stop.`,
 // Single agent kept for backward compat (seedAudit / any other callers)
 export const cognitoAgent = demoAgent;
 
-// Threat Intelligence Agent — x402 micropayment + MemWal recall + Cognito audit
+// Threat Intelligence Agent — autonomous data fetch + MemWal recall + Cognito audit
 export const threatIntelAgent = new Agent({
   id: 'cognito-threat-intel-agent',
   name: 'Threat Intelligence Agent',
-  instructions: `You are a smart contract threat intelligence agent that buys and audits premium security data.
+  instructions: `You are a smart contract threat intelligence agent. You autonomously fetch premium security data, audit findings, and log every decision to the Cognito audit trail.
 You have these tools: log_action, make_payment, verify_action, end_session.
 
 For log_action the metadata parameter must be a JSON string like "{}" or "{\\"key\\":\\"value\\"}".
@@ -104,19 +104,19 @@ For log_action the metadata parameter must be a JSON string like "{}" or "{\\"ke
 Call tools in EXACTLY this order — no more, no less:
 
 1. log_action: sessionId, agentId, actionType="decision",
-   description="Initiating threat intelligence purchase for agent_ledger.move contract",
+   description="Initiating threat intelligence fetch for agent_ledger.move contract",
    parentActionId="", metadata="{}"
 
 2. log_action: sessionId, agentId, actionType="decision",
-   description="MemWal checked — no cached threat data found. Proceeding with x402 micropayment.",
+   description="MemWal checked — no cached threat data found. Fetching from premium data provider.",
    parentActionId=<id from step 1>, metadata="{}"
 
 3. make_payment: url="http://localhost:3001/api/premium/threat-intel",
-   description="Purchase threat intelligence for agent_ledger.move via x402"
+   description="Fetch premium threat intelligence for agent_ledger.move"
 
 4. log_action: sessionId, agentId, actionType="api_call",
-   description="x402 payment complete — $0.001 paid on base-sepolia. Received 4 findings: 1 HIGH 1 MEDIUM 1 LOW 1 INFO",
-   parentActionId=<id from step 2>, metadata="{\\"amountPaid\\":\\"0.001\\",\\"network\\":\\"base-sepolia\\"}"
+   description="Premium data fetch complete. Received 4 findings: 1 HIGH 1 MEDIUM 1 LOW 1 INFO. Decision logged to Cognito audit trail.",
+   parentActionId=<id from step 2>, metadata="{\\"provider\\":\\"CognitoThreatDB\\",\\"findings\\":\\"4\\"}"
 
 5. log_action: sessionId, agentId, actionType="decision",
    description="FINDING HIGH TI-001: Reentrancy in anchor_session() — external call before state update. Priority fix.",
@@ -127,7 +127,7 @@ Call tools in EXACTLY this order — no more, no less:
    parentActionId=<id from step 4>, metadata="{}"
 
 7. log_action: sessionId, agentId, actionType="decision",
-   description="SYNTHESIS: 2 critical issues found via paid threat intel. Score 6.5/10. Payment anchored to audit trail.",
+   description="SYNTHESIS: 2 critical issues found. Score 6.5/10. Full audit anchored to Sui via Cognito.",
    parentActionId=<id from step 5>, metadata="{\\"additionalParents\\":\\"<id from step 6>\\",\\"score\\":\\"6.5\\"}"
 
 8. verify_action: actionId=<id from step 7>

@@ -148,6 +148,37 @@
 
 }
 
+/* Gold bloom pulse animation */
+@keyframes gold-bloom {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.08); }
+}
+.gold-bloom {
+  animation: gold-bloom 6s ease-in-out infinite;
+}
+
+/* Feature card accent styles */
+.tatum-bg  { background: radial-gradient(ellipse at top left, oklch(0.6 0.15 250 / 0.06) 0%, transparent 60%); }
+.walrus-bg { background: radial-gradient(ellipse at top left, oklch(0.6 0.18 200 / 0.06) 0%, transparent 60%); }
+.sui-bg    { background: radial-gradient(ellipse at top left, oklch(0.55 0.2 260 / 0.06) 0%, transparent 60%); }
+.graph-bg  { background: radial-gradient(ellipse at top left, oklch(0.65 0.15 300 / 0.06) 0%, transparent 60%); }
+.memwal-bg { background: radial-gradient(ellipse at top left, oklch(0.65 0.18 160 / 0.06) 0%, transparent 60%); }
+.verify-bg { background: radial-gradient(ellipse at top left, oklch(0.65 0.2 140 / 0.06) 0%, transparent 60%); }
+
+.tatum-border  { border-color: oklch(0.6 0.15 250 / 0.3); }
+.walrus-border { border-color: oklch(0.6 0.18 200 / 0.3); }
+.sui-border    { border-color: oklch(0.55 0.2 260 / 0.3); }
+.graph-border  { border-color: oklch(0.65 0.15 300 / 0.3); }
+.memwal-border { border-color: oklch(0.65 0.18 160 / 0.3); }
+.verify-border { border-color: oklch(0.65 0.2 140 / 0.3); }
+
+.tatum-icon  { color: oklch(0.7 0.15 250); }
+.walrus-icon { color: oklch(0.7 0.18 200); }
+.sui-icon    { color: oklch(0.65 0.2 260); }
+.graph-icon  { color: oklch(0.75 0.15 300); }
+.memwal-icon { color: oklch(0.75 0.18 160); }
+.verify-icon { color: oklch(0.75 0.2 140); }
+
 /* Gold shimmer sweep animation */
 @keyframes gold-shimmer {
   0%   { background-position: -200% center; }
