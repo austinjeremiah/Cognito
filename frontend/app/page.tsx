@@ -139,7 +139,6 @@ export default function CognitoLanding() {
         </section>
 
         <Footer />
-        <ChatPill />
       </div>
     </div>
   )
