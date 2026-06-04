@@ -126,14 +126,6 @@ export default function CognitoLanding() {
               >
                 Open Dashboard
               </a>
-              <a
-                href="https://testnet.suivision.xyz"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-8 py-3 rounded-full border border-border text-foreground font-medium hover:bg-muted/50 transition-colors tracking-tight font-sans"
-              >
-                View on SuiVision
-              </a>
             </div>
           </div>
         </section>

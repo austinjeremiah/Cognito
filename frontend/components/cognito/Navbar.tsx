@@ -6,19 +6,21 @@ import { cn } from "@/lib/utils"
 
 const links = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/agents", label: "Agents" },
-  { href: "/graph/cognito-security-auditor", label: "Graph" },
+  { href: "/agents",    label: "Agents" },
+  { href: "/graph/cognito-demo-agent", label: "Graph" },
 ]
 
 export function Navbar() {
   const pathname = usePathname()
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-sm border-b border-border/50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+    <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-md border-b border-border/40">
+      <div className="w-full px-4 sm:px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-8">
-          <Link href="/" className="font-mono font-normal text-base text-foreground tracking-tight">
-            Cognito
+          <Link href="/" className="flex items-center gap-2 group">
+            <span className="font-mono font-normal text-xl text-foreground tracking-tight group-hover:text-foreground/80 transition-colors gold-shimmer instrument">
+              Cognito
+            </span>
           </Link>
           <nav className="flex items-center gap-1">
             {links.map((link) => (
@@ -36,6 +38,11 @@ export function Navbar() {
               </Link>
             ))}
           </nav>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+          <span className="text-xs text-muted-foreground font-mono">live</span>
         </div>
       </div>
     </header>
