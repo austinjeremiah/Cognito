@@ -40,6 +40,11 @@ const configSchema = z.object({
   // Groq
   GROQ_API_KEY: z.string().min(1),
   GROQ_MODEL: z.string().default('groq/llama-3.1-8b-instant'),
+
+  // MemWal (optional — service degrades gracefully if not set)
+  MEMWAL_PRIVATE_KEY: z.string().optional(),
+  MEMWAL_ACCOUNT_ID: z.string().optional(),
+  MEMWAL_SERVER_URL: z.string().optional().default('https://relayer.memwal.ai'),
 });
 
 const parsed = configSchema.safeParse(process.env);

@@ -7,6 +7,7 @@ import { useSessions } from "@/hooks/useSessions"
 import { useSessionActions } from "@/hooks/useSessionActions"
 import { api } from "@/app/lib/api"
 import { VerifyPanel } from "@/components/cognito/VerifyPanel"
+import { MemoryPanel } from "@/components/cognito/MemoryPanel"
 import { ActionEntry } from "@/components/cognito/ActionEntry"
 import { TxBadge } from "@/components/cognito/TxBadge"
 import { BlobLink } from "@/components/cognito/BlobLink"
@@ -125,6 +126,25 @@ export default function SessionDetailPage({ params }: { params: Promise<{ sessio
         </div>
 
       </div>
+
+      {/* Relevant Memories */}
+      <details className="group">
+        <summary className="flex items-center gap-2 cursor-pointer list-none text-sm font-medium text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest select-none">
+          <svg
+            className="w-4 h-4 transition-transform group-open:rotate-90"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+          Relevant Memories
+        </summary>
+        <div className="mt-4">
+          <MemoryPanel defaultQuery={sessionId} />
+        </div>
+      </details>
     </div>
   )
 }

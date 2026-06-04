@@ -4,6 +4,7 @@ import { queryHistoryTool } from './tools/queryHistoryTool';
 import { readBlobTool } from './tools/readBlobTool';
 import { verifyActionTool } from './tools/verifyActionTool';
 import { endSessionTool } from './tools/endSessionTool';
+import { makePaymentTool } from './tools/makePaymentTool';
 
 const MODEL = process.env.GROQ_MODEL ?? 'groq/llama-3.1-8b-instant';
 
@@ -73,11 +74,12 @@ export const demoAgent = new Agent({
   id: 'cognito-demo-agent',
   name: 'Cognito Live Demo Agent',
   instructions: `You are a smart contract security auditor running a live demo.
+The metadata parameter for log_action must always be a JSON string. Pass "{}" if you have no metadata.
 Call exactly these 5 tools in order — no more, no less:
 
-1. log_action: sessionId, agentId, actionType="tool_use",   description="Live demo: starting audit of agent_ledger.move"
-2. log_action: sessionId, agentId, actionType="code_write", description="Parsed contract — anchor_session() has no capability guard (MEDIUM)", parentActionId=<id from step 1>
-3. log_action: sessionId, agentId, actionType="decision",   description="FINDING MEDIUM: anyone can emit SessionAnchored for any agent_id — recommend signer whitelist", parentActionId=<id from step 2>
+1. log_action: sessionId, agentId, actionType="tool_use",   description="Live demo: starting audit of agent_ledger.move", parentActionId="", metadata="{}"
+2. log_action: sessionId, agentId, actionType="code_write", description="Parsed contract — anchor_session() has no capability guard (MEDIUM)", parentActionId=<id from step 1>, metadata="{}"
+3. log_action: sessionId, agentId, actionType="decision",   description="FINDING MEDIUM: anyone can emit SessionAnchored for any agent_id — recommend signer whitelist", parentActionId=<id from step 2>, metadata="{}"
 4. verify_action: actionId=<id from step 3>
 5. end_session: sessionId
 
@@ -89,3 +91,55 @@ After end_session, stop.`,
 
 // Single agent kept for backward compat (seedAudit / any other callers)
 export const cognitoAgent = demoAgent;
+
+// Threat Intelligence Agent — x402 micropayment + MemWal recall + Cognito audit
+export const threatIntelAgent = new Agent({
+  id: 'cognito-threat-intel-agent',
+  name: 'Threat Intelligence Agent',
+  instructions: `You are a smart contract threat intelligence agent that buys and audits premium security data.
+You have these tools: log_action, make_payment, verify_action, end_session.
+
+For log_action the metadata parameter must be a JSON string like "{}" or "{\\"key\\":\\"value\\"}".
+
+Call tools in EXACTLY this order — no more, no less:
+
+1. log_action: sessionId, agentId, actionType="decision",
+   description="Initiating threat intelligence purchase for agent_ledger.move contract",
+   parentActionId="", metadata="{}"
+
+2. log_action: sessionId, agentId, actionType="decision",
+   description="MemWal checked — no cached threat data found. Proceeding with x402 micropayment.",
+   parentActionId=<id from step 1>, metadata="{}"
+
+3. make_payment: url="http://localhost:3001/api/premium/threat-intel",
+   description="Purchase threat intelligence for agent_ledger.move via x402"
+
+4. log_action: sessionId, agentId, actionType="api_call",
+   description="x402 payment complete — $0.001 paid on base-sepolia. Received 4 findings: 1 HIGH 1 MEDIUM 1 LOW 1 INFO",
+   parentActionId=<id from step 2>, metadata="{\\"amountPaid\\":\\"0.001\\",\\"network\\":\\"base-sepolia\\"}"
+
+5. log_action: sessionId, agentId, actionType="decision",
+   description="FINDING HIGH TI-001: Reentrancy in anchor_session() — external call before state update. Priority fix.",
+   parentActionId=<id from step 4>, metadata="{}"
+
+6. log_action: sessionId, agentId, actionType="decision",
+   description="FINDING MEDIUM TI-002: Missing signer whitelist — anyone can emit SessionAnchored. Add capability guard.",
+   parentActionId=<id from step 4>, metadata="{}"
+
+7. log_action: sessionId, agentId, actionType="decision",
+   description="SYNTHESIS: 2 critical issues found via paid threat intel. Score 6.5/10. Payment anchored to audit trail.",
+   parentActionId=<id from step 5>, metadata="{\\"additionalParents\\":\\"<id from step 6>\\",\\"score\\":\\"6.5\\"}"
+
+8. verify_action: actionId=<id from step 7>
+
+9. end_session: sessionId
+
+Use exact IDs returned by each tool. Do not skip steps. Stop after end_session.`,
+  model: MODEL,
+  tools: {
+    log_action:   logActionTool,
+    make_payment: makePaymentTool,
+    verify_action: verifyActionTool,
+    end_session:  endSessionTool,
+  },
+});

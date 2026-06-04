@@ -13,7 +13,7 @@ export const logActionTool = createTool({
     actionType:     z.enum(['code_write', 'decision', 'api_call', 'web_search', 'tool_use', 'other']),
     description:    z.string().max(2000).describe('What this action does'),
     parentActionId: z.string().describe('actionId of the parent action. Pass empty string "" for the first/root action.'),
-    metadata:       z.record(z.unknown()).describe('Extra JSON data. Pass {} if none.'),
+    metadata:       z.string().describe('Extra data as a JSON string. Pass "{}" if none. Example: "{\\"key\\": \\"value\\"}"'),
   }),
   execute: async (input) => {
     const body: Record<string, unknown> = {
@@ -23,7 +23,9 @@ export const logActionTool = createTool({
       description: input.description,
     };
     if (input.parentActionId) body.parentActionId = input.parentActionId;
-    if (input.metadata && Object.keys(input.metadata).length > 0) body.metadata = input.metadata;
+    if (input.metadata && input.metadata !== '{}') {
+      try { body.metadata = JSON.parse(input.metadata); } catch { /* ignore malformed metadata */ }
+    }
 
     const res = await fetch(`${API_BASE}/api/log`, {
       method: 'POST',

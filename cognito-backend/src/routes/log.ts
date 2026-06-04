@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { requireApiKey } from '../middleware/auth';
 import { suiSql, cache, queue } from '../services/container';
+import { rememberAction } from '../services/MemWalService';
 import { ValidationError } from '../types/errors';
 import logger from '../utils/logger';
 
@@ -51,6 +52,8 @@ export async function logRoutes(app: FastifyInstance): Promise<void> {
 
     await cache.del(`history:${data.agentId}`);
     await cache.del(`session-actions:${data.sessionId}`);
+
+    rememberAction(action);
 
     logger.info('Action logged', { actionId, sessionId: data.sessionId, type: data.actionType });
 

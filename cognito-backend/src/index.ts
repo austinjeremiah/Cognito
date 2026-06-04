@@ -11,6 +11,8 @@ import { historyRoutes } from './routes/history';
 import { blobRoutes } from './routes/blob';
 import { verifyRoutes } from './routes/verify';
 import { graphRoutes } from './routes/graph';
+import { memoryRoutes } from './routes/memory';
+import { x402Routes } from './routes/x402';
 import { suiSql, walrus, cache, queue } from './services/container';
 import { startWalrusBatchJob } from './jobs/walrusBatchJob';
 
@@ -54,6 +56,8 @@ async function bootstrap() {
   await app.register(blobRoutes);
   await app.register(verifyRoutes);
   await app.register(graphRoutes);
+  await app.register(memoryRoutes);
+  await app.register(x402Routes);
 
   app.setErrorHandler(handleError);
 

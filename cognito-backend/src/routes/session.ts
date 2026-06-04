@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { requireApiKey } from '../middleware/auth';
 import { suiSql, walrus, cache, queue } from '../services/container';
 import { SuiAnchorService } from '../services/SuiAnchorService';
+import { rememberSession } from '../services/MemWalService';
 import { ValidationError, NotFoundError } from '../types/errors';
 import { TTL } from '../services/CacheService';
 import { config } from '../config';
@@ -102,6 +103,11 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         });
 
         await suiSql.updateSession(sessionId, { mainnetTxDigest: anchorResult.txDigest });
+
+        rememberSession(
+          { id: sessionId, agentId: session.agentId, actionCount: session.actionCount + pending.length, blobId },
+          anchorResult.txDigest,
+        );
       } catch (err) {
         logger.error('Mainnet anchor failed (session still ended)', { sessionId, error: (err as Error).message });
       }

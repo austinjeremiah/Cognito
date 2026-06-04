@@ -6,10 +6,11 @@ import { useActionHistory } from "@/hooks/useActionHistory"
 import { ActionEntry } from "@/components/cognito/ActionEntry"
 import { SessionCard } from "@/components/cognito/SessionCard"
 import { AgentBadge } from "@/components/cognito/AgentBadge"
+import { MemoryPanel } from "@/components/cognito/MemoryPanel"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Session } from "@/app/types"
 
-type Tab = "timeline" | "sessions"
+type Tab = "timeline" | "sessions" | "memory"
 
 function deriveSessionsFromHistory(actions: ReturnType<typeof useActionHistory>["data"]): Session[] {
   if (!actions) return []
@@ -35,6 +36,7 @@ function deriveSessionsFromHistory(actions: ReturnType<typeof useActionHistory>[
 export default function AgentDetailPage({ params }: { params: Promise<{ agentId: string }> }) {
   const { agentId } = use(params)
   const [tab, setTab] = useState<Tab>("timeline")
+  const TABS: Tab[] = ["timeline", "sessions", "memory"]
   const { data: actions, isLoading } = useActionHistory(agentId, 100)
 
   const sessions = useMemo(() => deriveSessionsFromHistory(actions), [actions])
@@ -60,7 +62,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ agentId:
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">
-        {(["timeline", "sessions"] as Tab[]).map((t) => (
+        {TABS.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -118,6 +120,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ agentId:
             <p className="text-center text-sm text-muted-foreground py-8">No sessions found.</p>
           )}
         </div>
+      )}
+
+      {/* Memory tab */}
+      {tab === "memory" && (
+        <MemoryPanel defaultQuery={agentId} />
       )}
     </div>
   )

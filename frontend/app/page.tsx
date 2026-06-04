@@ -30,6 +30,10 @@ export default function CognitoLanding() {
               <FeatureSection title="Sui Mainnet Anchor" description="One immutable anchor transaction per session on Sui mainnet via Tatum RPC. Ties the Walrus blob ID and SuiSQL object to a permanent on-chain event." index={2} />
 
               <FeatureSection title="Knowledge Graph" description="Agent actions visualized as a DAG. See the full decision tree: branches, convergence points, and cross-edges between findings and verifications." index={3} />
+
+              <FeatureSection title="MemWal Semantic Memory" description="Every action and completed session is remembered semantically via MemWal on Walrus. Agents recall relevant past context before acting — accountable and context-aware." index={4} />
+
+              <FeatureSection title="Fully Verifiable Stack" description="Audit trail + semantic memory + on-chain anchor + knowledge graph. The only agent runtime where everything that happened can be proven and recalled." index={5} />
             </div>
           </div>
         </section>
