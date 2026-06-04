@@ -56,7 +56,7 @@ export default function GraphPage({ params }: { params: Promise<{ agentId: strin
   const [selectedBlobId, setSelectedBlobId] = useState<string | null>(null)
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const [chatInput, setChatInput] = useState("")
-  const [messages, setMessages] = useState<{ role: "user" | "ai"; text: string }[]>([])
+  const [messages, setMessages] = useState<{ role: "user" | "ai"; text: string; blobUrl?: string }[]>([])
   const graphRef = useRef<any>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const explain = useExplain()
@@ -110,11 +110,47 @@ export default function GraphPage({ params }: { params: Promise<{ agentId: strin
       actionType: n.type,
       description: n.label,
       ts: n.ts,
+      blobId: n.blobId,
     }))
 
+    const aggregator = process.env.NEXT_PUBLIC_WALRUS_AGGREGATOR ?? "https://aggregator.walrus-testnet.walrus.space"
+
+    // Fetch MemWal memories + blob content in parallel
+    const [memories, blobContent] = await Promise.all([
+      // MemWal recall
+      fetch(
+        `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}/api/memory/recall?q=${encodeURIComponent(question)}&topK=3`,
+        { headers: { "x-api-key": process.env.NEXT_PUBLIC_COGNITO_KEY ?? "" } }
+      ).then(r => r.ok ? r.json() : { results: [] })
+        .then((d: { results: { text: string }[] }) => d.results.map(r => r.text))
+        .catch(() => [] as string[]),
+
+      // Fetch blob for selected node or first node with blobId
+      (async () => {
+        const blobId = selectedNode?.blobId ?? actions.find(a => a.blobId)?.blobId
+        if (!blobId) return undefined
+        try {
+          const r = await fetch(`${aggregator}/v1/blobs/${blobId}`)
+          if (!r.ok) return undefined
+          const data = await r.json()
+          return Array.isArray(data) ? data as Record<string, unknown>[] : undefined
+        } catch { return undefined }
+      })(),
+    ])
+
     try {
-      const res = await explain.mutateAsync({ actions, question, nodeId: selectedNode?.id })
-      setMessages((prev) => [...prev, { role: "ai", text: res.answer }])
+      const blobId = selectedNode?.blobId ?? actions.find(a => a.blobId)?.blobId
+      const blobUrl = blobId ? `${aggregator}/v1/blobs/${blobId}` : undefined
+
+      const res = await explain.mutateAsync({
+        actions,
+        question,
+        nodeId: selectedNode?.id,
+        walrusAggregator: aggregator,
+        memories,
+        blobContent,
+      })
+      setMessages((prev) => [...prev, { role: "ai", text: res.answer, blobUrl }])
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50)
     } catch {
       setMessages((prev) => [...prev, { role: "ai", text: "Failed to get a response. Try again." }])
@@ -284,9 +320,10 @@ export default function GraphPage({ params }: { params: Promise<{ agentId: strin
                 <div className="space-y-2 pt-2">
                   <p className="text-xs text-muted-foreground/60 text-center mb-4">Click a suggestion or ask anything</p>
                   {[
-                    "Why did the agent make this decision?",
+                    "Summarize what this blob contains",
                     "What security risks exist in this session?",
-                    "Summarize the full agent flow",
+                    "Why did the agent make this decision?",
+                    "What does MemWal remember about this?",
                   ].map((q) => (
                     <button
                       key={q}
@@ -313,7 +350,7 @@ export default function GraphPage({ params }: { params: Promise<{ agentId: strin
                         </div>
                         <span className="text-xs text-muted-foreground font-mono">Cognito AI</span>
                       </div>
-                      <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl rounded-tl-sm px-3.5 py-3 text-sm text-foreground leading-relaxed prose prose-invert prose-sm max-w-none">
+                      <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl rounded-tl-sm px-3.5 py-3 text-sm text-foreground leading-relaxed prose prose-invert prose-sm max-w-none space-y-2">
                         <ReactMarkdown
                           components={{
                             p: ({ children }) => <p className="mb-2 last:mb-0 text-sm leading-relaxed text-foreground/90">{children}</p>,
@@ -322,10 +359,26 @@ export default function GraphPage({ params }: { params: Promise<{ agentId: strin
                             ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-2">{children}</ol>,
                             ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-2">{children}</ul>,
                             code: ({ children }) => <code className="bg-white/10 px-1 py-0.5 rounded text-xs font-mono text-green-400">{children}</code>,
+                            a: ({ href, children }) => (
+                              <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors">
+                                {children}
+                              </a>
+                            ),
                           }}
                         >
                           {msg.text}
                         </ReactMarkdown>
+                        {msg.blobUrl && (
+                          <a
+                            href={msg.blobUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 px-2.5 py-1.5 rounded-lg transition-all mt-2 font-mono no-underline"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            View raw blob on Walrus
+                          </a>
+                        )}
                       </div>
                     </div>
                   )}

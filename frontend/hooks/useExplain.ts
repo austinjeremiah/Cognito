@@ -8,6 +8,7 @@ interface ExplainAction {
   actionType: string
   description: string
   ts: number
+  blobId?: string
   parentActionId?: string
 }
 
@@ -15,6 +16,9 @@ interface ExplainRequest {
   actions: ExplainAction[]
   question: string
   nodeId?: string
+  walrusAggregator?: string
+  memories?: string[]
+  blobContent?: Record<string, unknown>[]
 }
 
 interface ExplainResponse {
