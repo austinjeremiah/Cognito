@@ -27,19 +27,16 @@ export function AgentCard({ agent }: AgentCardProps) {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-lg bg-muted/30 px-3 py-2">
-          <p className="text-2xl font-mono font-light text-foreground">{agent.totalSessions}</p>
+      <div className="rounded-lg bg-muted/30 px-4 py-3 flex items-center justify-between">
+        <div>
+          <p className="text-3xl font-mono font-light text-foreground">{agent.totalSessions}</p>
           <p className="text-xs text-muted-foreground uppercase tracking-wider mt-0.5">Sessions</p>
         </div>
-        <div className="rounded-lg bg-muted/30 px-3 py-2">
-          <p className="text-2xl font-mono font-light text-foreground">{agent.totalActions ?? 0}</p>
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mt-0.5">Actions</p>
+        <div className="text-right">
+          <p className="text-xs text-muted-foreground">Last active</p>
+          <p className="text-sm font-mono text-foreground mt-0.5">{lastActive}</p>
         </div>
       </div>
-
-      {/* Last active */}
-      <p className="text-xs text-muted-foreground">Last active {lastActive}</p>
 
       {/* Actions */}
       <div className="flex items-center gap-2 mt-auto pt-1">

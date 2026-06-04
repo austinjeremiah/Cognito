@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useMemoryRecall } from "@/hooks/useMemoryRecall"
-import { BlobLink } from "./BlobLink"
 import { Skeleton } from "@/components/ui/skeleton"
 
 interface MemoryPanelProps {
@@ -68,9 +67,8 @@ export function MemoryPanel({ defaultQuery = "" }: MemoryPanelProps) {
           )}
           {data.results.map((mem, i) => (
             <div key={i} className="rounded-xl border border-border bg-card/50 p-4 space-y-2">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
                 <DistanceBadge distance={mem.distance} />
-                {mem.blob_id && <BlobLink blobId={mem.blob_id} />}
               </div>
               <p className="text-sm text-foreground leading-relaxed font-mono">{mem.text}</p>
             </div>
