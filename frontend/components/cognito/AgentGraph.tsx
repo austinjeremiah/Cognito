@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef } from "react"
 import ForceGraph2D from "react-force-graph-2d"
 import type { GraphNode, GraphEdge } from "@/hooks/useGraph"
 
@@ -22,22 +22,25 @@ interface AgentGraphProps {
 export function AgentGraph({ nodes, edges, onNodeClick }: AgentGraphProps) {
   const fgRef = useRef<any>(null)
 
-  const nodeSet = new Set(nodes.map((n) => n.id))
+  // Memoize so ForceGraph doesn't restart simulation on every parent re-render
+  const graphData = useMemo(() => {
+    const nodeSet = new Set(nodes.map((n) => n.id))
+    return {
+      nodes: nodes.map((n) => ({ ...n, color: TYPE_COLORS[n.type] ?? TYPE_COLORS.other })),
+      links: edges
+        .filter((e) => nodeSet.has(e.source) && nodeSet.has(e.target))
+        .map((e) => ({ source: e.source, target: e.target })),
+    }
+  }, [nodes, edges])
 
-  const graphData = {
-    nodes: nodes.map((n) => ({
-      ...n,
-      color: TYPE_COLORS[n.type] ?? TYPE_COLORS.other,
-    })),
-    links: edges
-      .filter((e) => nodeSet.has(e.source) && nodeSet.has(e.target))
-      .map((e) => ({ source: e.source, target: e.target })),
-  }
+  useEffect(() => {
+    if (!fgRef.current) return
+    fgRef.current.d3Force("charge")?.strength(-180)
+    fgRef.current.d3Force("link")?.distance(60)
+    fgRef.current.d3ReheatSimulation()
+  }, [graphData])
 
   const handleNodeClick = useCallback((node: any) => {
-    if (node.blobId) {
-      window.open(`/blob/${encodeURIComponent(node.blobId)}`, "_blank")
-    }
     onNodeClick?.(node as GraphNode)
   }, [onNodeClick])
 
@@ -84,9 +87,9 @@ export function AgentGraph({ nodes, edges, onNodeClick }: AgentGraphProps) {
       linkDirectionalParticles={1}
       linkDirectionalParticleSpeed={0.004}
       backgroundColor="transparent"
-      cooldownTicks={200}
-      d3AlphaDecay={0.01}
-      d3VelocityDecay={0.2}
+      cooldownTicks={300}
+      d3AlphaDecay={0.008}
+      d3VelocityDecay={0.3}
       nodeRelSize={6}
     />
   )

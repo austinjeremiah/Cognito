@@ -4,8 +4,10 @@ import { use, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, ExternalLink } from "lucide-react"
+import { X, ExternalLink, Send, Sparkles } from "lucide-react"
+import ReactMarkdown from "react-markdown"
 import { useGraph, type GraphNode } from "@/hooks/useGraph"
+import { useExplain } from "@/hooks/useExplain"
 import { ActionTypeIcon } from "@/components/cognito/ActionTypeIcon"
 import { formatDistanceToNow } from "date-fns"
 import type { ActionLog } from "@/app/types"
@@ -53,7 +55,11 @@ export default function GraphPage({ params }: { params: Promise<{ agentId: strin
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null)
   const [selectedBlobId, setSelectedBlobId] = useState<string | null>(null)
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
+  const [chatInput, setChatInput] = useState("")
+  const [messages, setMessages] = useState<{ role: "user" | "ai"; text: string }[]>([])
   const graphRef = useRef<any>(null)
+  const chatEndRef = useRef<HTMLDivElement>(null)
+  const explain = useExplain()
 
   // Group nodes by blobId — each blobId = one session
   const sessionGroups = useMemo(() => {
@@ -83,6 +89,36 @@ export default function GraphPage({ params }: { params: Promise<{ agentId: strin
 
   function openBlob(blobId: string) {
     window.open(`${WALRUS_AGGREGATOR}/v1/blobs/${blobId}`, "_blank", "noopener")
+  }
+
+  function handleNodeSelect(node: GraphNode) {
+    setSelectedNode(node)
+    setMessages([])
+    setChatInput("")
+  }
+
+  async function handleAsk(e: React.FormEvent) {
+    e.preventDefault()
+    if (!chatInput.trim() || explain.isPending) return
+
+    const question = chatInput.trim()
+    setChatInput("")
+    setMessages((prev) => [...prev, { role: "user", text: question }])
+
+    const actions = filteredNodes.map((n) => ({
+      id: n.id,
+      actionType: n.type,
+      description: n.label,
+      ts: n.ts,
+    }))
+
+    try {
+      const res = await explain.mutateAsync({ actions, question, nodeId: selectedNode?.id })
+      setMessages((prev) => [...prev, { role: "ai", text: res.answer }])
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50)
+    } catch {
+      setMessages((prev) => [...prev, { role: "ai", text: "Failed to get a response. Try again." }])
+    }
   }
 
   return (
@@ -155,7 +191,7 @@ export default function GraphPage({ params }: { params: Promise<{ agentId: strin
       </div>
 
       {/* Graph canvas */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative overflow-hidden">
         {isLoading && <GraphLoading />}
 
         {isError && (
@@ -175,90 +211,162 @@ export default function GraphPage({ params }: { params: Promise<{ agentId: strin
               <span className="text-foreground">Graph</span>
             </div>
 
-            <AgentGraph
-              nodes={filteredNodes}
-              edges={filteredEdges}
-              onNodeClick={setSelectedNode}
-            />
+            <div style={{ position: "absolute", inset: 0 }}>
+              <AgentGraph
+                nodes={filteredNodes}
+                edges={filteredEdges}
+                onNodeClick={handleNodeSelect}
+              />
+            </div>
           </>
         )}
       </div>
 
-      {/* Node detail panel */}
+      {/* AI Chat Panel */}
       <AnimatePresence>
         {selectedNode && (
           <motion.div
-            initial={{ x: 320, opacity: 0 }}
+            key="ai-panel"
+            initial={{ x: 400, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 320, opacity: 0 }}
-            transition={{ type: "spring" as const, stiffness: 300, damping: 30 }}
-            className="w-[300px] shrink-0 h-full bg-background/95 backdrop-blur-md border-l border-border overflow-y-auto"
+            exit={{ x: 400, opacity: 0 }}
+            transition={{ type: "spring" as const, stiffness: 280, damping: 28 }}
+            className="w-[380px] shrink-0 flex flex-col overflow-hidden border-l border-border/60 relative z-10"
+            style={{ height: "calc(100vh - 56px)", background: "linear-gradient(180deg, #0d0d0d 0%, #0a0a0a 100%)" }}
           >
-            <div className="p-5 space-y-5">
-              <div className="flex items-start justify-between">
+            {/* Node pill */}
+            <div className="px-4 pt-4 pb-3 border-b border-border/40 shrink-0">
+              <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <ActionTypeIcon type={selectedNode.type as ActionLog["actionType"]} />
-                  <span className="text-sm font-medium text-foreground">
-                    {TYPE_LABELS[selectedNode.type] ?? "Action"}
-                  </span>
+                  <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">{TYPE_LABELS[selectedNode.type] ?? "Action"}</span>
                 </div>
-                <button
-                  onClick={() => setSelectedNode(null)}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <X className="h-4 w-4" />
+                <button onClick={() => setSelectedNode(null)} className="text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded hover:bg-muted/40">
+                  <X className="h-3.5 w-3.5" />
                 </button>
               </div>
-
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Description</p>
-                  <p className="text-sm text-foreground leading-relaxed">{selectedNode.label}</p>
-                </div>
-
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Action ID</p>
-                  <p className="text-xs font-mono text-muted-foreground break-all">{selectedNode.id}</p>
-                </div>
-
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Timestamp</p>
-                  <p className="text-sm text-foreground">
-                    {formatDistanceToNow(new Date(selectedNode.ts), { addSuffix: true })}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Status</p>
-                  <span className={`inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border font-medium ${
-                    selectedNode.anchored
-                      ? "bg-green-500/10 text-green-400 border-green-500/20"
-                      : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
-                  }`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${selectedNode.anchored ? "bg-green-400" : "bg-yellow-400"}`} />
-                    {selectedNode.anchored ? "Anchored" : "Not anchored"}
-                  </span>
-                </div>
+              <p className="text-sm text-foreground leading-snug mb-2">{selectedNode.label}</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(selectedNode.ts), { addSuffix: true })}</span>
+                <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-mono ${
+                  selectedNode.anchored ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                }`}>
+                  <span className={`h-1 w-1 rounded-full ${selectedNode.anchored ? "bg-green-400" : "bg-yellow-400"}`} />
+                  {selectedNode.anchored ? "Anchored" : "Pending"}
+                </span>
+                {selectedNode.blobId && (
+                  <button onClick={() => openBlob(selectedNode.blobId!)} className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors font-mono">
+                    <ExternalLink className="h-3 w-3" />Blob
+                  </button>
+                )}
               </div>
+            </div>
 
-              {/* Primary action — view blob */}
-              {selectedNode.blobId && (
-                <button
-                  onClick={() => openBlob(selectedNode.blobId!)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition-colors text-sm font-medium"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  View Walrus Blob
+            {/* AI header */}
+            <div className="px-4 py-2.5 border-b border-border/30 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center">
+                  <Sparkles className="h-2.5 w-2.5 text-white" />
+                </div>
+                <span className="text-xs font-mono text-foreground">Cognito AI</span>
+                <span className="text-xs text-muted-foreground">· {filteredNodes.length} actions in context</span>
+              </div>
+              {messages.length > 0 && (
+                <button onClick={() => setMessages([])} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  Clear
                 </button>
               )}
-
-              <Link
-                href={`/agents/${agentId}`}
-                className="block text-center text-xs px-3 py-2 rounded-md border border-border hover:bg-muted/50 transition-colors text-muted-foreground"
-              >
-                View full timeline
-              </Link>
             </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
+              {messages.length === 0 && (
+                <div className="space-y-2 pt-2">
+                  <p className="text-xs text-muted-foreground/60 text-center mb-4">Click a suggestion or ask anything</p>
+                  {[
+                    "Why did the agent make this decision?",
+                    "What security risks exist in this session?",
+                    "Summarize the full agent flow",
+                  ].map((q) => (
+                    <button
+                      key={q}
+                      onClick={() => setChatInput(q)}
+                      className="w-full text-left text-xs px-3 py-2.5 rounded-xl border border-border/40 bg-white/[0.03] hover:bg-white/[0.07] text-muted-foreground hover:text-foreground transition-all duration-200 leading-relaxed"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {messages.map((msg, i) => (
+                <div key={i} className={`flex flex-col gap-1 ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                  {msg.role === "user" ? (
+                    <div className="max-w-[88%] bg-white/[0.08] border border-white/[0.06] rounded-2xl rounded-tr-sm px-3.5 py-2.5 text-sm text-foreground leading-relaxed">
+                      {msg.text}
+                    </div>
+                  ) : (
+                    <div className="max-w-[96%] space-y-1">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <div className="w-4 h-4 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center shrink-0">
+                          <Sparkles className="h-2 w-2 text-white" />
+                        </div>
+                        <span className="text-xs text-muted-foreground font-mono">Cognito AI</span>
+                      </div>
+                      <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl rounded-tl-sm px-3.5 py-3 text-sm text-foreground leading-relaxed prose prose-invert prose-sm max-w-none">
+                        <ReactMarkdown
+                          components={{
+                            p: ({ children }) => <p className="mb-2 last:mb-0 text-sm leading-relaxed text-foreground/90">{children}</p>,
+                            strong: ({ children }) => <strong className="text-foreground font-semibold">{children}</strong>,
+                            li: ({ children }) => <li className="text-sm text-foreground/90 mb-1">{children}</li>,
+                            ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-2">{children}</ol>,
+                            ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-2">{children}</ul>,
+                            code: ({ children }) => <code className="bg-white/10 px-1 py-0.5 rounded text-xs font-mono text-green-400">{children}</code>,
+                          }}
+                        >
+                          {msg.text}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {explain.isPending && (
+                <div className="flex items-start gap-2">
+                  <div className="w-4 h-4 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center shrink-0 mt-1">
+                    <Sparkles className="h-2 w-2 text-white" />
+                  </div>
+                  <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl rounded-tl-sm px-4 py-3">
+                    <div className="flex gap-1.5 items-center">
+                      <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: "120ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: "240ms" }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Input */}
+            <form onSubmit={handleAsk} className="p-3 border-t border-border/40 shrink-0">
+              <div className="flex items-center gap-2 bg-white/[0.05] border border-white/[0.08] rounded-xl px-3 py-2 focus-within:border-white/20 transition-colors">
+                <input
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Ask about this agent flow..."
+                  className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none font-mono"
+                />
+                <button
+                  type="submit"
+                  disabled={explain.isPending || !chatInput.trim()}
+                  className="w-7 h-7 rounded-lg bg-violet-500 hover:bg-violet-400 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 shrink-0"
+                >
+                  <Send className="h-3.5 w-3.5 text-white" />
+                </button>
+              </div>
+            </form>
           </motion.div>
         )}
       </AnimatePresence>
