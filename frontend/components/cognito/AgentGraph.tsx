@@ -41,7 +41,6 @@ export function AgentGraph({ nodes, edges, onNodeClick }: AgentGraphProps) {
     onNodeClick?.(node as GraphNode)
   }, [onNodeClick])
 
-  // stable callback — reads from ref, never recreated on hover
   const nodeCanvasObject = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const r = 6
     const color = node.color ?? TYPE_COLORS.other

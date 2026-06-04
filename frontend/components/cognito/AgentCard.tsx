@@ -7,9 +7,10 @@ interface AgentCardProps {
 }
 
 export function AgentCard({ agent }: AgentCardProps) {
-  const lastActive = agent.lastActive
-    ? formatDistanceToNow(new Date(agent.lastActive), { addSuffix: true })
-    : "never"
+  const activeTs = agent.lastActive ?? agent.createdAt
+  const lastActive = activeTs
+    ? formatDistanceToNow(new Date(activeTs), { addSuffix: true })
+    : "unknown"
 
   return (
     <div className="group relative rounded-xl border border-border/50 bg-card/40 backdrop-blur-sm p-5 hover:bg-card hover:border-border hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col gap-4">

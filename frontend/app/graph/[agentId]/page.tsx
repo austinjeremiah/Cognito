@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useMemo, useState } from "react"
+import { use, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
@@ -52,6 +52,8 @@ export default function GraphPage({ params }: { params: Promise<{ agentId: strin
   const { data, isLoading, isError } = useGraph(agentId)
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null)
   const [selectedBlobId, setSelectedBlobId] = useState<string | null>(null)
+  const [sidebarExpanded, setSidebarExpanded] = useState(false)
+  const graphRef = useRef<any>(null)
 
   // Group nodes by blobId — each blobId = one session
   const sessionGroups = useMemo(() => {
@@ -87,11 +89,22 @@ export default function GraphPage({ params }: { params: Promise<{ agentId: strin
     <div className="flex h-[calc(100vh-56px)] overflow-hidden">
 
       {/* Left sidebar */}
-      <div className="w-48 shrink-0 h-full bg-background/80 backdrop-blur-sm border-r border-border flex flex-col p-4 gap-6">
+      <div className={`${sidebarExpanded ? "w-72" : "w-52"} shrink-0 h-full bg-background/80 backdrop-blur-sm border-r border-border flex flex-col p-4 gap-6 transition-all duration-200`}>
 
         {/* Session selector */}
         <div className="space-y-2">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest">Session</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground uppercase tracking-widest">Session</p>
+            <button
+              onClick={() => setSidebarExpanded((v) => !v)}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              title={sidebarExpanded ? "Collapse" : "Expand"}
+            >
+              <svg className={`w-3 h-3 transition-transform duration-200 ${sidebarExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
           <select
             value={activeBlobId ?? ""}
             onChange={(e) => { setSelectedBlobId(e.target.value); setSelectedNode(null) }}
@@ -99,36 +112,45 @@ export default function GraphPage({ params }: { params: Promise<{ agentId: strin
           >
             {sessionGroups.map((s) => (
               <option key={s.blobId} value={s.blobId}>
-                Session {s.index} {s.anchored ? "· anchored" : ""} · {s.count} nodes
+                S{s.index}{s.anchored ? " · anchored" : ""} · {s.count} nodes
               </option>
             ))}
           </select>
           {activeSession?.anchored && (
             <button
               onClick={() => activeBlobId && openBlob(activeBlobId)}
-              className="w-full text-left text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
+              className="w-full text-left text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1.5"
             >
-              <ExternalLink className="h-3 w-3" />
+              <ExternalLink className="h-3.5 w-3.5" />
               View blob
             </button>
           )}
         </div>
 
         {/* Legend */}
-        <div className="space-y-2">
+        <div className="space-y-3">
           <p className="text-xs text-muted-foreground uppercase tracking-widest">Types</p>
           {Object.entries(TYPE_LABELS).map(([type, label]) => (
-            <div key={type} className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: TYPE_COLORS[type] }} />
-              <span className="text-xs text-muted-foreground">{label}</span>
+            <div key={type} className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: TYPE_COLORS[type] }} />
+              <span className="text-sm text-muted-foreground">{label}</span>
             </div>
           ))}
         </div>
 
         {/* Stats */}
-        <div className="mt-auto space-y-1 text-xs text-muted-foreground font-mono">
-          <p><span className="text-foreground">{filteredNodes.length}</span> nodes</p>
-          <p className="text-[10px] opacity-50">scroll to zoom<br />click node for details</p>
+        <div className="mt-auto space-y-3">
+          <div className="rounded-lg bg-muted/30 p-3 space-y-2 text-sm font-mono">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Nodes</span>
+              <span className="text-foreground">{filteredNodes.length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Edges</span>
+              <span className="text-foreground">{filteredEdges.length}</span>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground opacity-50 leading-relaxed">scroll to zoom · drag to pan · click node for details</p>
         </div>
       </div>
 
