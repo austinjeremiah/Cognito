@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react"
 
 interface Stats {
-  totalAgents: number
-  totalSessions: number
-  totalActions: number
-  totalAnchors: number
+  agents: number
+  sessions: number
+  actions: number
+  anchors: number
 }
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
@@ -52,10 +52,10 @@ export function LiveStats() {
   const stats = useStats()
 
   const items = [
-    { label: "Actions Logged", value: stats?.totalActions ?? 0 },
-    { label: "Sessions", value: stats?.totalSessions ?? 0 },
-    { label: "Agents", value: stats?.totalAgents ?? 0 },
-    { label: "On-chain Anchors", value: stats?.totalAnchors ?? 0 },
+    { label: "Actions Logged", value: stats?.actions ?? 0 },
+    { label: "Sessions", value: stats?.sessions ?? 0 },
+    { label: "Agents", value: stats?.agents ?? 0 },
+    { label: "On-chain Anchors", value: stats?.anchors ?? 0 },
   ]
 
   return (

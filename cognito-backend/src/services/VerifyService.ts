@@ -35,12 +35,17 @@ export class VerifyService {
       };
     }
 
-    // Step 1: fetch blob from Walrus
+    // Step 1: fetch blob from Walrus aggregator (HTTP, faster than SDK storage node reads)
     let blobContent: string;
     let blobFetched = false;
     try {
-      const bytes = await this.walrus.readBlob(action.blobId);
-      blobContent = new TextDecoder().decode(bytes);
+      const aggregatorUrl = `https://aggregator.walrus-testnet.walrus.space/v1/blobs/${action.blobId}`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(aggregatorUrl, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (!res.ok) throw new Error(`Aggregator returned ${res.status}`);
+      blobContent = await res.text();
       blobFetched = true;
     } catch {
       return {
@@ -63,10 +68,13 @@ export class VerifyService {
 
     if (session?.mainnetTxDigest) {
       try {
-        const tx = await (testnetClient as any).getTransactionBlock({
-          digest: session.mainnetTxDigest,
-          options: { showEvents: true },
-        });
+        const tx = await Promise.race([
+          (testnetClient as any).getTransactionBlock({
+            digest: session.mainnetTxDigest,
+            options: { showEvents: true },
+          }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('RPC timeout')), 8000)),
+        ]) as any;
 
         const event = tx.events?.find((e: any) =>
           e.type?.includes('::agent_ledger::SessionAnchored')
