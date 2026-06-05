@@ -955,4 +955,4 @@ MIT — see [LICENSE](LICENSE) for full terms.
 
 ---
 
-<p align="center">Built for the Tantum hack 2026 Hackathon &nbsp;·&nbsp; DeFi & Payments + Tooling tracks</p>
+<p align="center">Built for the Tatum hack 2026 Hackathon &nbsp;·&nbsp; DeFi & Payments + Tooling tracks</p>
