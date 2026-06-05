@@ -2,9 +2,13 @@ import { HeroSection } from "@/components/hero-section"
 import { FeatureSection } from "@/components/feature-section"
 import { HowItWorks } from "@/components/how-it-works"
 import { LiveStats } from "@/components/live-stats"
-import { ChatPill } from "@/components/chat-pill"
 import { Footer } from "@/components/footer"
 import { WaterShaderBackground } from "@/components/ui/water-shader-background"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import Link from "next/link"
+
+const STACK_ITEMS = ["Sui Blockchain", "Walrus Storage", "MemWal Memory", "Groq AI", "Mastra Agents", "Tatum RPC", "SuiSQL"]
 
 const FEATURES = [
   {
@@ -79,6 +83,17 @@ export default function CognitoLanding() {
 
         <HowItWorks />
 
+        {/* Tech stack marquee */}
+        <div className="w-full border-y border-border/40 py-5 overflow-hidden bg-muted/10">
+          <div className="flex gap-6 animate-marquee whitespace-nowrap">
+            {[...STACK_ITEMS, ...STACK_ITEMS, ...STACK_ITEMS].map((item, i) => (
+              <Badge key={i} variant="secondary" className="px-4 py-1.5 text-xs font-mono text-muted-foreground shrink-0">
+                {item}
+              </Badge>
+            ))}
+          </div>
+        </div>
+
         <section className="py-24 px-6 relative">
           <div className="absolute inset-0 opacity-20">
             <WaterShaderBackground />
@@ -119,13 +134,13 @@ export default function CognitoLanding() {
               Cognito gives your AI agents a tamper-proof memory of everything they did.
               Stored on Walrus. Anchored on Sui. Recalled by MemWal.
             </p>
-            <div className="flex items-center gap-4 justify-center pt-4">
-              <a
-                href="/dashboard"
-                className="px-8 py-3 rounded-full bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors tracking-tight font-sans"
-              >
-                Open Dashboard
-              </a>
+            <div className="flex items-center gap-3 justify-center pt-4">
+              <Button asChild size="lg" className="rounded-full px-8 tracking-tight font-sans">
+                <Link href="/dashboard">Open Dashboard</Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="rounded-full px-8 tracking-tight font-sans">
+                <Link href="/agents">View Agents</Link>
+              </Button>
             </div>
           </div>
         </section>

@@ -2,6 +2,7 @@
 
 import { motion, useScroll, useTransform } from "motion/react"
 import { useRef } from "react"
+import { Badge } from "@/components/ui/badge"
 
 const STEPS = [
   {
@@ -67,9 +68,9 @@ export function HowItWorks() {
                 <div className="flex-1 pb-6 border-b border-border/30 last:border-0">
                   <div className="flex items-start justify-between gap-4 mb-2">
                     <h3 className="text-lg font-mono text-foreground">{step.title}</h3>
-                    <code className="text-xs font-mono text-muted-foreground bg-muted/50 px-2 py-1 rounded shrink-0">
+                    <Badge variant="outline" className="text-xs font-mono text-muted-foreground shrink-0">
                       {step.detail}
-                    </code>
+                    </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">{step.description}</p>
                 </div>

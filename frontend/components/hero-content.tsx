@@ -1,20 +1,16 @@
 "use client"
 
 import Link from "next/link"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 
 export default function HeroContent() {
   return (
     <div className="text-center my-0 p-0 px-0 py-16 rounded-4xl shadow-none bg-background/85 backdrop-blur-sm border-border border-none border-0">
       <div className="flex items-center justify-center flex-col text-center py-4">
-        <div
-          className="inline-flex items-center px-3 py-1 rounded-full bg-muted/50 backdrop-blur-sm relative border mb-0 border-border"
-          style={{ filter: "url(#glass-effect)" }}
-        >
-          <div className="absolute top-0 left-1 right-1 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent rounded-full" />
-          <span className="text-muted-foreground text-xs md:text-sm relative z-10 font-light">
-             The Truth Layer for AI Agents
-          </span>
-        </div>
+        <Badge variant="outline" className="mb-4 px-4 py-1.5 text-xs md:text-sm font-light text-muted-foreground border-border/60 bg-muted/50 backdrop-blur-sm rounded-full">
+          The Truth Layer for AI Agents
+        </Badge>
       </div>
 
       <h1
@@ -30,14 +26,17 @@ export default function HeroContent() {
         Your agents act. We prove it forever.
       </p>
 
-      <div className="flex items-center gap-4 flex-wrap justify-center">
-        <Link
-          href="/dashboard"
-          className="px-6 py-3 sm:px-8 sm:py-3 rounded-full bg-primary text-primary-foreground font-medium transition-all duration-200 hover:bg-primary/90 focus:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background cursor-pointer tracking-tighter font-sans text-base min-h-[44px] touch-manipulation flex items-center"
-          aria-label="Open Cognito Dashboard"
-        >
-          Open Dashboard
-        </Link>
+      <div className="flex items-center gap-3 flex-wrap justify-center">
+        <Button asChild size="lg" className="rounded-full px-8 tracking-tight font-sans">
+          <Link href="/dashboard" aria-label="Open Cognito Dashboard">
+            Open Dashboard
+          </Link>
+        </Button>
+        <Button asChild size="lg" variant="outline" className="rounded-full px-8 tracking-tight font-sans">
+          <a href="https://github.com/austinjeremiah/Cognito" target="_blank" rel="noopener noreferrer">
+            View on GitHub
+          </a>
+        </Button>
       </div>
     </div>
   )
