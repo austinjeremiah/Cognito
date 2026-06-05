@@ -111,7 +111,7 @@ Run Phase 1 now. Call log_action 9 times exactly as instructed, then output the 
     const histRes = await fetch(`${API_BASE}/api/history/${agentId}?limit=9`, {
       headers: { 'x-api-key': API_KEY },
     });
-    const actions: any[] = await histRes.json();
+    const actions = (await histRes.json()) as any[];
     ids = {};
     actions.slice(0, 9).reverse().forEach((a: any, i: number) => {
       ids[`a${i + 1}`] = a.id;

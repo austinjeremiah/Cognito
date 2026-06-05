@@ -42,7 +42,7 @@ async function bootstrap() {
   await app.register(cors, {
     origin:
       config.NODE_ENV === 'production'
-        ? ['https://cognito.walrus.site']
+        ? ['https://cognito-lyart.vercel.app', 'https://cognito.walrus.site']
         : ['http://localhost:3000', 'http://localhost:3001'],
     credentials: true,
   });
